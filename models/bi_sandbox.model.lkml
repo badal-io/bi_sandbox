@@ -1,6 +1,6 @@
 connection: "badal_internal_projects"
 
-include: "/explores/*"
+include: "/views/*"
 # include: "/**/*.view.lkml"                 # include all views in this project
 # include: "my_dashboard.dashboard.lookml"   # include a LookML dashboard called my_dashboard
 
@@ -18,3 +18,7 @@ include: "/explores/*"
 #     sql_on: ${users.id} = ${orders.user_id} ;;
 #   }
 # }
+
+explore: car_crash200315 {
+  description: "This is a description of the explore."
+}
