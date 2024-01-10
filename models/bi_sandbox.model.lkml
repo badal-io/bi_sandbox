@@ -16,3 +16,7 @@ explore: world_population_by_country_2023 {
     sql_on: ${world_population_by_country_2023.country} = ${world_country_stats.country} ;;
   }
 }
+
+explore: world_population_derived {
+  label: "World Population_dervied"
+}
