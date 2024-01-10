@@ -6,7 +6,6 @@ view: world_population_derived {
            w1.land_area AS land_area_world_country,
            w1.median_age AS median_age_world_country,
            w1.region AS region_world_country,
-           w1.count AS count_world_country,
            w2.density AS density_world_population,
            w2.net_change AS net_change_world_population,
            w2.net_migrants AS net_migrants_world_population,
@@ -14,7 +13,6 @@ view: world_population_derived {
            w2.population_urban AS population_urban_world_population,
            w2.world_share AS world_share_world_population,
            w2.yearly_change AS yearly_change_world_population,
-           w2.count AS count_world_population
          FROM world_country_stats w1
          LEFT JOIN world_population_by_country_2023 w2 ON w1.country = w2.country ;;
   }
@@ -80,13 +78,7 @@ view: world_population_derived {
     sql: ${TABLE}.yearly_change_world_population ;;
   }
 
-  # measure: count_world_country {
-  #   type: count
-  #   sql: ${TABLE}.count_world_country ;;
-  # }
-
-  # measure: count_world_population {
-  #   type: count
-  #   sql: ${TABLE}.count_world_population ;;
-  # }
+  measure: count {
+    type: count
+  }
 }
