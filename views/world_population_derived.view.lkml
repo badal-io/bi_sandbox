@@ -25,57 +25,57 @@ view: world_population_derived {
     sql: ${TABLE}.country ;;
   }
 
-  dimension: fertility_rate_world_country {
+  dimension: fertility_rate {
     type: number
     sql: ${TABLE}.fertility_rate_world_country ;;
   }
 
-  dimension: land_area_world_country {
+  dimension: land_area {
     type: number
     sql: ${TABLE}.land_area_world_country ;;
   }
 
-  dimension: median_age_world_country {
+  dimension: median_age {
     type: number
     sql: ${TABLE}.median_age_world_country ;;
   }
 
-  dimension: region_world_country {
+  dimension: region {
     type: string
     sql: ${TABLE}.region_world_country ;;
   }
 
-  dimension: density_world_population {
+  dimension: density {
     type: number
     sql: ${TABLE}.density_world_population ;;
   }
 
-  dimension: net_change_world_population {
+  dimension: net_change {
     type: number
     sql: ${TABLE}.net_change_world_population ;;
   }
 
-  dimension: net_migrants_world_population {
+  dimension: net_migrants {
     type: number
     sql: ${TABLE}.net_migrants_world_population ;;
   }
 
-  dimension: population_world_population {
+  dimension: population {
     type: number
     sql: ${TABLE}.population_world_population ;;
   }
 
-  dimension: population_urban_world_population {
+  dimension: population_urban {
     type: number
     sql: ${TABLE}.population_urban_world_population ;;
   }
 
-  dimension: world_share_world_population {
+  dimension: world_share {
     type: number
     sql: ${TABLE}.world_share_world_population ;;
   }
 
-  dimension: yearly_change_world_population {
+  dimension: yearly_change {
     type: number
     sql: ${TABLE}.yearly_change_world_population ;;
   }
