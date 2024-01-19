@@ -1,10 +1,10 @@
 view: world_population_by_year_1950_2023 {
   sql_table_name: `Ilya_looker.world_population_by_year_1950_2023` ;;
 
-  # dimension:`1950` {
-  #   type: number
-  #   sql: ${TABLE}."1950" ;;
-  # }
+  dimension: year_1950 {
+    type: number
+    sql: ${TABLE}."1950" ;;
+  }
   # dimension:`1951` {
   #   type: number
   #   sql: ${TABLE}.`1951` ;;

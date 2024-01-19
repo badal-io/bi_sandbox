@@ -13,8 +13,8 @@ view: world_population_derived {
            w2.population_urban AS population_urban_world_population,
            w2.world_share AS world_share_world_population,
            w2.yearly_change AS yearly_change_world_population,
-         FROM world_country_stats w1
-         LEFT JOIN world_population_by_country_2023 w2 ON w1.country = w2.country ;;
+         FROM `prj-s-dlp-dq-sandbox-0b3c.Ilya_looker.world_country_stats` w1
+         LEFT JOIN `prj-s-dlp-dq-sandbox-0b3c.Ilya_looker.world_population_by_country_2023`  w2 ON w1.country = w2.country ;;
   }
 
   dimension: country {
