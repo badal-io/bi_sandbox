@@ -11,3 +11,7 @@ explore: evg_taxi_trips_snapshot {
 explore: chicago_crime {
   label: "Chicago Crime"
 }
+
+explore: v_netflix_titles_enriched {
+  label: "Netflix Titles"
+}
