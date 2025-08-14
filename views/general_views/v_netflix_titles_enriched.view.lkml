@@ -64,4 +64,40 @@ view: v_netflix_titles_enriched {
   measure: count {
     type: count
   }
+
+  measure: movies_count {
+    label: "Movies"
+    type: sum
+    sql: CASE WHEN ${type} = 'Movie' THEN 1 ELSE 0 END ;;
+  }
+
+  measure: tv_shows_count {
+    label: "TV Shows"
+    type: sum
+    sql: CASE WHEN ${type} = 'TV Show' THEN 1 ELSE 0 END ;;
+  }
+
+  measure: avg_days_from_release_to_added {
+    label: "Avg Days: Release → Added"
+    type: average
+    sql: DATE_DIFF(${date_added_date}, DATE(SAFE_CAST(${release_year} AS INT64), 1, 1), DAY) ;;
+    value_format: "0"
+  }
+
+  measure: avg_years_since_release {
+    label: "Avg Years Since Release"
+    type: average
+    sql: EXTRACT(YEAR FROM CURRENT_DATE()) - ${release_year} ;;
+    value_format: "0.0"
+  }
+
+  measure: avg_tv_seasons {
+    label: "Avg TV Seasons"
+    type: average
+    sql: CASE
+         WHEN ${type} = 'TV Show' AND ${duration_unit} LIKE '%Season%'
+           THEN ${duration_value}
+       END ;;
+  }
+
 }
