@@ -1,7 +1,7 @@
 connection: "badal_internal_projects"
 
-include: "/explores/*"
-# include: "/**/*.view.lkml"                 # include all views in this project
+include: "/explores/case_21.explore"
+include: "/explores/general_views.explore"
 # include: "my_dashboard.dashboard.lookml"   # include a LookML dashboard called my_dashboard
 
 # # Select the views that should be a part of this model,
