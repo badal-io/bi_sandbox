@@ -20,6 +20,12 @@ view: case21_dep_a_data {
     type: number
     sql: ${TABLE}.number ;;
   }
+
+  measure: total_number {
+    type: sum
+    sql: ${number} ;;
+  }
+
   measure: count {
     type: count
   }
