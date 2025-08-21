@@ -10,8 +10,8 @@ test: org_value_value_check {
 }
 
 test: org_value_dep_length_check {
-  explore_source: department {
-    column: val {
+  explore_source: org_a_data_all_dep {
+    column: department {
       field: org_a_data_all_dep.department
     }
   }
