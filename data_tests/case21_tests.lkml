@@ -16,6 +16,6 @@ test: org_value_dep_length_check {
     }
   }
   assert: value_limit {
-    expression: len(${org_a_data_all_dep.department}) =5 ;;
+    expression: length(${org_a_data_all_dep.department}) =5 ;;
   }
 }
