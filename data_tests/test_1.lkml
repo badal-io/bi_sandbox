@@ -5,6 +5,6 @@ test: org_value_check {
     }
   }
   assert: value_limit {
-    expression: ${org_a_data_all_dep.total_value} >0 ;;
+    expression: ${org_a_data_all_dep.total_value} >1000 ;;
   }
 }
