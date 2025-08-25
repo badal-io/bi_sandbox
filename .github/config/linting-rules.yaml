@@ -1,1 +1,33 @@
+# LookML Linting Rules Configuration
 
+mandatory_fields:
+  dimension:
+    - label
+    - description
+  measure:
+    - label
+    - description
+    - type
+  explore:
+    - description
+  dashboard:
+    - title
+    - description
+
+naming_conventions:
+  use_snake_case: true
+  boolean_prefixes:
+    - is_
+    - has_
+    - can_
+    - should_
+  avoid_reserved_words:
+    - order
+    - group
+    - select
+    - from
+    - where
+    - join
+    - limit
+
+performance_
