@@ -1,0 +1,204 @@
+name: LookML Validation Pipeline
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+    paths: 
+      - '**/*.lookml'
+      - '**/*.lkml'
+      - '**/*.model'
+      - '**/*.view'
+      - '**/*.explore'
+      - '**/*.dashboard'
+      - 'manifest.lkml'
+  push:
+    branches: [ main, master ]
+    paths: 
+      - '**/*.lookml'
+      - '**/*.lkml'
+      - '**/*.model'
+      - '**/*.view'
+      - '**/*.explore'
+      - '**/*.dashboard'
+      - 'manifest.lkml'
+
+jobs:
+  lookml-validation:
+    runs-on: ubuntu-latest
+    name: Validate LookML Code
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for better diff analysis
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/.github/scripts/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r .github/scripts/requirements.txt
+    
+    - name: Setup Looker configuration
+      run: |
+        # Create looker config from template
+        cp .github/config/looker-config.ini.template looker.ini
+        # Replace placeholders with actual values from secrets
+        sed -i "s/YOUR_CLIENT_ID/${{ secrets.LOOKER_CLIENT_ID }}/g" looker.ini
+        sed -i "s/YOUR_CLIENT_SECRET/${{ secrets.LOOKER_CLIENT_SECRET }}/g" looker.ini
+        sed -i "s/YOUR_LOOKER_BASE_URL/${{ secrets.LOOKER_BASE_URL }}/g" looker.ini
+      env:
+        LOOKER_CLIENT_ID: ${{ secrets.LOOKER_CLIENT_ID }}
+        LOOKER_CLIENT_SECRET: ${{ secrets.LOOKER_CLIENT_SECRET }}
+        LOOKER_BASE_URL: ${{ secrets.LOOKER_BASE_URL }}
+    
+    - name: Get changed files
+      id: changed-files
+      uses: tj-actions/changed-files@v40
+      with:
+        files: |
+          **/*.lookml
+          **/*.lkml
+          **/*.model
+          **/*.view
+          **/*.explore
+          **/*.dashboard
+          manifest.lkml
+    
+    - name: Display changed LookML files
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Changed LookML files:"
+        echo "${{ steps.changed-files.outputs.all_changed_files }}"
+    
+    # Step 1: LookML Syntax Validation using Looker API
+    - name: Validate LookML Syntax
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "🔍 Running LookML syntax validation..."
+        python .github/scripts/looker-validator.py --project-name="${{ github.event.repository.name }}"
+      continue-on-error: false
+    
+    # Step 2: Custom LookML Linting
+    - name: Run LookML Linting
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "📝 Running custom LookML linting..."
+        python .github/scripts/lookml-linter.py --files="${{ steps.changed-files.outputs.all_changed_files }}"
+      continue-on-error: false
+    
+    # Step 3: Generate validation report
+    - name: Generate Validation Report
+      if: always() && steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "📊 Generating validation report..."
+        echo "## LookML Validation Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Files Validated:" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f validation_results.json ]; then
+          echo "### Validation Results:" >> $GITHUB_STEP_SUMMARY
+          python -c "
+import json
+with open('validation_results.json', 'r') as f:
+    results = json.load(f)
+    if results.get('errors', []):
+        print('#### ❌ Errors Found:')
+        for error in results['errors']:
+            print(f'- {error}')
+    else:
+        print('#### ✅ No syntax errors found!')
+    
+    if results.get('warnings', []):
+        print('#### ⚠️ Warnings:')
+        for warning in results['warnings']:
+            print(f'- {warning}')
+" >> $GITHUB_STEP_SUMMARY
+        fi
+    
+    - name: Upload validation artifacts
+      if: always() && steps.changed-files.outputs.any_changed == 'true'
+      uses: actions/upload-artifact@v3
+      with:
+        name: lookml-validation-results
+        path: |
+          validation_results.json
+          linting_results.json
+        retention-days: 30
+    
+    # Fail the job if there were validation errors
+    - name: Check validation results
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        if [ -f validation_results.json ]; then
+          error_count=$(python -c "
+import json
+with open('validation_results.json', 'r') as f:
+    results = json.load(f)
+    print(len(results.get('errors', [])))
+")
+          if [ "$error_count" -gt 0 ]; then
+            echo "❌ LookML validation failed with $error_count errors"
+            exit 1
+          else
+            echo "✅ LookML validation passed!"
+          fi
+        fi
+    
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request' && steps.changed-files.outputs.any_changed == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let comment = '## 🔍 LookML Validation Results\n\n';
+          
+          if (fs.existsSync('validation_results.json')) {
+            const results = JSON.parse(fs.readFileSync('validation_results.json', 'utf8'));
+            
+            if (results.errors && results.errors.length > 0) {
+              comment += '### ❌ Validation Errors\n';
+              results.errors.forEach(error => {
+                comment += `- ${error}\n`;
+              });
+              comment += '\n';
+            }
+            
+            if (results.warnings && results.warnings.length > 0) {
+              comment += '### ⚠️ Warnings\n';
+              results.warnings.forEach(warning => {
+                comment += `- ${warning}\n`;
+              });
+              comment += '\n';
+            }
+            
+            if ((!results.errors || results.errors.length === 0) && 
+                (!results.warnings || results.warnings.length === 0)) {
+              comment += '### ✅ All validations passed!\n\n';
+            }
+          } else {
+            comment += '### ℹ️ No validation results found\n\n';
+          }
+          
+          comment += `**Workflow run:** [${context.runNumber}](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
