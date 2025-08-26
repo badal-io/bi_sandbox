@@ -99,34 +99,7 @@ jobs:
       if: always() && steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "📊 Generating validation report..."
-        echo "## LookML Validation Report" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Files Validated:" >> $GITHUB_STEP_SUMMARY
-        echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        if [ -f validation_results.json ]; then
-          echo "### Validation Results:" >> $GITHUB_STEP_SUMMARY
-          python -c "
-import json
-import sys
-try:
-    with open('validation_results.json', 'r') as f:
-        results = json.load(f)
-    if results.get('errors', []):
-        print('#### ❌ Errors Found:')
-        for error in results['errors']:
-            print(f'- {error}')
-    else:
-        print('#### ✅ No syntax errors found!')
-    
-    if results.get('warnings', []):
-        print('#### ⚠️ Warnings:')
-        for warning in results['warnings']:
-            print(f'- {warning}')
-except Exception as e:
-    print(f'Error reading validation results: {e}')
-" >> $GITHUB_STEP_SUMMARY
-        fi
+        python .github/scripts/report-generator.py
     
     - name: Upload validation artifacts
       if: always() && steps.changed-files.outputs.any_changed == 'true'
@@ -136,29 +109,13 @@ except Exception as e:
         path: |
           validation_results.json
           linting_results.json
+          validation_summary.md
         retention-days: 30
     
     - name: Check validation results
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
-        if [ -f validation_results.json ]; then
-          error_count=$(python -c "
-import json
-import sys
-try:
-    with open('validation_results.json', 'r') as f:
-        results = json.load(f)
-    print(len(results.get('errors', [])))
-except Exception as e:
-    print('0')
-")
-          if [ "$error_count" -gt 0 ]; then
-            echo "❌ LookML validation failed with $error_count errors"
-            exit 1
-          else
-            echo "✅ LookML validation passed!"
-          fi
-        fi
+        python .github/scripts/check-results.py
     
     - name: Comment PR with results
       if: github.event_name == 'pull_request' && steps.changed-files.outputs.any_changed == 'true'
@@ -167,44 +124,15 @@ except Exception as e:
         script: |
           const fs = require('fs');
           
-          let comment = '## 🔍 LookML Validation Results\n\n';
-          
-          if (fs.existsSync('validation_results.json')) {
-            try {
-              const results = JSON.parse(fs.readFileSync('validation_results.json', 'utf8'));
-              
-              if (results.errors && results.errors.length > 0) {
-                comment += '### ❌ Validation Errors\n';
-                results.errors.forEach(error => {
-                  comment += `- ${error}\n`;
-                });
-                comment += '\n';
-              }
-              
-              if (results.warnings && results.warnings.length > 0) {
-                comment += '### ⚠️ Warnings\n';
-                results.warnings.forEach(warning => {
-                  comment += `- ${warning}\n`;
-                });
-                comment += '\n';
-              }
-              
-              if ((!results.errors || results.errors.length === 0) && 
-                  (!results.warnings || results.warnings.length === 0)) {
-                comment += '### ✅ All validations passed!\n\n';
-              }
-            } catch (e) {
-              comment += '### ⚠️ Could not parse validation results\n\n';
-            }
+          if (fs.existsSync('pr_comment.md')) {
+            const comment = fs.readFileSync('pr_comment.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
           } else {
-            comment += '### ℹ️ No validation results found\n\n';
+            console.log('No PR comment file found');
           }
-          
-          comment += `**Workflow run:** [${context.runNumber}](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
