@@ -1,257 +1,146 @@
-#!/usr/bin/env python3
-"""
-LookML Validator using Looker API - DEBUG VERSION
-Validates LookML syntax and project structure
-"""
+name: LookML Validation Pipeline
 
-import json
-import sys
-import argparse
-import configparser
-import requests
-from typing import Dict, List, Any
-import os
-import time
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+    paths: 
+      - '**/*.lookml'
+      - '**/*.lkml'
+      - '**/*.model'
+      - '**/*.view'
+      - '**/*.explore'
+      - '**/*.dashboard'
+      - 'manifest.lkml'
+  push:
+    branches: [ main, master ]
+    paths: 
+      - '**/*.lookml'
+      - '**/*.lkml'
+      - '**/*.model'
+      - '**/*.view'
+      - '**/*.explore'
+      - '**/*.dashboard'
+      - 'manifest.lkml'
 
-
-class LookerValidator:
-    def __init__(self, config_file: str = 'looker.ini'):
-        self.config = configparser.ConfigParser()
-        self.config.read(config_file)
-        
-        # Looker connection details
-        self.base_url = self.config['Looker']['base_url'].rstrip('/')
-        self.client_id = self.config['Looker']['client_id']
-        self.client_secret = self.config['Looker']['client_secret']
-        self.api_version = self.config.get('Looker', 'api_version', fallback='4.0')
-        
-        self.api_url = f"{self.base_url}/api/{self.api_version}"
-        self.session = requests.Session()
-        self.access_token = None
-        self.validation_results = {
-            'errors': [],
-            'warnings': [],
-            'info': [],
-            'project_validation': None
-        }
+jobs:
+  lookml-validation:
+    runs-on: ubuntu-latest
+    name: Validate LookML Code
     
-    def authenticate(self) -> bool:
-        """Authenticate with Looker API and get access token"""
-        login_url = f"{self.api_url}/login"
-        
-        login_data = {
-            'client_id': self.client_id,
-            'client_secret': self.client_secret
-        }
-        
-        try:
-            print(f"🔐 Attempting to authenticate with: {login_url}")
-            response = self.session.post(login_url, data=login_data)
-            response.raise_for_status()
-            
-            auth_data = response.json()
-            self.access_token = auth_data.get('access_token')
-            
-            if not self.access_token:
-                print("❌ Failed to obtain access token")
-                return False
-                
-            # Set authorization header for future requests
-            self.session.headers.update({
-                'Authorization': f'Bearer {self.access_token}',
-                'Content-Type': 'application/json'
-            })
-            
-            print("✅ Successfully authenticated with Looker API")
-            return True
-            
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Authentication failed: {e}")
-            return False
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
-    def list_projects(self) -> List[str]:
-        """List all available projects to help debug project name issues"""
-        try:
-            projects_url = f"{self.api_url}/projects"
-            print(f"🔍 Fetching projects from: {projects_url}")
-            response = self.session.get(projects_url)
-            response.raise_for_status()
-            
-            projects = response.json()
-            project_names = [p.get('name', '') for p in projects]
-            
-            print(f"📋 Available projects: {project_names}")
-            return project_names
-            
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Failed to list projects: {e}")
-            return []
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
     
-    def validate_project(self, project_name: str) -> Dict[str, Any]:
-        """Validate LookML project using Looker API"""
-        if not self.authenticate():
-            return {'success': False, 'error': 'Authentication failed'}
-        
-        try:
-            # First, list all available projects
-            available_projects = self.list_projects()
-            
-            if project_name not in available_projects:
-                error_msg = f"Project '{project_name}' not found. Available projects: {available_projects}"
-                print(f"⚠️ {error_msg}")
-                self.validation_results['errors'].append(error_msg)
-                
-                # Try manifest validation as fallback
-                print("ℹ️ Using manifest validation instead...")
-                return self.validate_manifest()
-            
-            # Validate the specific project
-            validation_url = f"{self.api_url}/projects/{project_name}/validate"
-            print(f"🔍 Validating project at: {validation_url}")
-            
-            response = self.session.get(validation_url)
-            print(f"📡 Response status: {response.status_code}")
-            print(f"📡 Response headers: {dict(response.headers)}")
-            
-            # Debug: show raw response content
-            raw_content = response.text
-            print(f"📡 Raw response (first 200 chars): {raw_content[:200]}...")
-            
-            if response.status_code != 200:
-                error_msg = f"API returned status {response.status_code}: {raw_content}"
-                print(f"❌ {error_msg}")
-                self.validation_results['errors'].append(error_msg)
-                return {'success': False, 'error': error_msg}
-            
-            # Try to parse JSON
-            try:
-                validation_data = response.json()
-                print("✅ Successfully parsed JSON response")
-            except json.JSONDecodeError as e:
-                error_msg = f"Failed to parse JSON response: {e}. Raw content: {raw_content}"
-                print(f"❌ {error_msg}")
-                self.validation_results['errors'].append(error_msg)
-                return {'success': False, 'error': error_msg}
-            
-            self.validation_results['project_validation'] = validation_data
-            return self.process_validation_results(validation_data)
-            
-        except requests.exceptions.RequestException as e:
-            error_msg = f"API request failed: {e}"
-            self.validation_results['errors'].append(error_msg)
-            return {'success': False, 'error': error_msg}
+    - name: Cache Python dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/.github/scripts/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
     
-    def validate_manifest(self) -> Dict[str, Any]:
-        """Validate manifest.lkml file if present"""
-        manifest_path = 'manifest.lkml'
-        
-        if not os.path.exists(manifest_path):
-            warning_msg = "No manifest.lkml file found - this is recommended for LookML projects"
-            self.validation_results['warnings'].append(warning_msg)
-            print(f"⚠️ {warning_msg}")
-            return {'success': True, 'warnings': [warning_msg]}
-        
-        try:
-            with open(manifest_path, 'r') as f:
-                manifest_content = f.read()
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r .github/scripts/requirements.txt
+    
+    - name: Setup Looker configuration
+      run: |
+        cp .github/config/looker-config.ini.template looker.ini
+        sed -i "s|YOUR_CLIENT_ID|${{ secrets.LOOKER_CLIENT_ID }}|g" looker.ini
+        sed -i "s|YOUR_CLIENT_SECRET|${{ secrets.LOOKER_CLIENT_SECRET }}|g" looker.ini
+        sed -i "s|YOUR_LOOKER_BASE_URL|${{ secrets.LOOKER_BASE_URL }}|g" looker.ini
+      env:
+        LOOKER_CLIENT_ID: ${{ secrets.LOOKER_CLIENT_ID }}
+        LOOKER_CLIENT_SECRET: ${{ secrets.LOOKER_CLIENT_SECRET }}
+        LOOKER_BASE_URL: ${{ secrets.LOOKER_BASE_URL }}
+    
+    - name: Get changed files
+      id: changed-files
+      uses: tj-actions/changed-files@v44
+      with:
+        files: |
+          **/*.lookml
+          **/*.lkml
+          **/*.model
+          **/*.view
+          **/*.explore
+          **/*.dashboard
+          manifest.lkml
+    
+    - name: Display changed LookML files
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Changed LookML files:"
+        echo "${{ steps.changed-files.outputs.all_changed_files }}"
+    
+    - name: Validate LookML Syntax
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Running LookML syntax validation..."
+        python .github/scripts/looker-validator.py --project-name="bi_sandbox"
+      continue-on-error: false
+    
+    - name: Run LookML Linting
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Running custom LookML linting..."
+        python .github/scripts/lookml-linter.py --files="${{ steps.changed-files.outputs.all_changed_files }}"
+      continue-on-error: false
+    
+    - name: Run LookML Data Tests
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Running LookML data tests..."
+        python .github/scripts/lookml-data-tests.py --project-name="bi_sandbox"
+      continue-on-error: true
+    
+    - name: Generate Validation Report
+      if: always() && steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Generating validation report..."
+        python .github/scripts/report-generator.py
+    
+    - name: Upload validation artifacts
+      if: always() && steps.changed-files.outputs.any_changed == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lookml-validation-results
+        path: |
+          validation_results.json
+          linting_results.json
+          data_tests_results.json
+          validation_summary.md
+        retention-days: 30
+    
+    - name: Check validation results
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        python .github/scripts/check-results.py
+    
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request' && steps.changed-files.outputs.any_changed == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('pr_comment.md')) {
+            const comment = fs.readFileSync('pr_comment.md', 'utf8');
             
-            # Basic manifest validation
-            required_fields = ['project_name']
-            missing_fields = []
-            
-            for field in required_fields:
-                if field not in manifest_content:
-                    missing_fields.append(field)
-            
-            if missing_fields:
-                error_msg = f"manifest.lkml missing required fields: {missing_fields}"
-                self.validation_results['errors'].append(error_msg)
-                print(f"❌ {error_msg}")
-            else:
-                info_msg = "manifest.lkml basic validation passed"
-                self.validation_results['info'].append(info_msg)
-                print(f"✅ {info_msg}")
-            
-            return {'success': len(missing_fields) == 0}
-            
-        except Exception as e:
-            error_msg = f"Error validating manifest.lkml: {e}"
-            self.validation_results['errors'].append(error_msg)
-            return {'success': False, 'error': error_msg}
-    
-    def process_validation_results(self, validation_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process validation results from Looker API"""
-        success = True
-        
-        print(f"📋 Processing validation results: {list(validation_data.keys())}")
-        
-        # Check for errors
-        if 'errors' in validation_data:
-            for error in validation_data['errors']:
-                error_msg = f"LookML Error: {error.get('message', 'Unknown error')}"
-                if 'file_path' in error:
-                    error_msg += f" in {error['file_path']}"
-                if 'line_number' in error:
-                    error_msg += f" (line {error['line_number']})"
-                
-                self.validation_results['errors'].append(error_msg)
-                print(f"❌ {error_msg}")
-                success = False
-        
-        # Check for warnings
-        if 'warnings' in validation_data:
-            for warning in validation_data['warnings']:
-                warning_msg = f"LookML Warning: {warning.get('message', 'Unknown warning')}"
-                if 'file_path' in warning:
-                    warning_msg += f" in {warning['file_path']}"
-                if 'line_number' in warning:
-                    warning_msg += f" (line {warning['line_number']})"
-                
-                self.validation_results['warnings'].append(warning_msg)
-                print(f"⚠️ {warning_msg}")
-        
-        # Check for project info
-        if 'project' in validation_data:
-            project_info = validation_data['project']
-            info_msg = f"Project validation completed for: {project_info.get('name', 'Unknown')}"
-            self.validation_results['info'].append(info_msg)
-            print(f"ℹ️ {info_msg}")
-        
-        return {'success': success}
-    
-    def save_results(self, output_file: str = 'validation_results.json'):
-        """Save validation results to JSON file"""
-        try:
-            with open(output_file, 'w') as f:
-                json.dump(self.validation_results, f, indent=2)
-            print(f"📄 Validation results saved to {output_file}")
-        except Exception as e:
-            print(f"❌ Failed to save results: {e}")
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Validate LookML project using Looker API')
-    parser.add_argument('--project-name', required=True, help='Name of the LookML project to validate')
-    parser.add_argument('--config-file', default='looker.ini', help='Looker configuration file')
-    parser.add_argument('--output-file', default='validation_results.json', help='Output file for results')
-    
-    args = parser.parse_args()
-    
-    print(f"🚀 Starting LookML validation for project: {args.project_name}")
-    print(f"🔧 Using config file: {args.config_file}")
-    print(f"📄 Output file: {args.output_file}")
-    
-    validator = LookerValidator(args.config_file)
-    result = validator.validate_project(args.project_name)
-    validator.save_results(args.output_file)
-    
-    if result.get('success', False):
-        print("✅ LookML validation completed successfully!")
-        sys.exit(0)
-    else:
-        print("❌ LookML validation failed!")
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } else {
+            console.log('No PR comment file found');
+          }
