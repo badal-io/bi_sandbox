@@ -15,3 +15,11 @@ explore: chicago_crime {
 explore: v_netflix_titles_enriched {
   label: "Netflix Titles"
 }
+
+explore: biglake{
+  label: "Big Lake Test"
+}
+
+explore: name_basics{
+  label: "Name Basics"
+}

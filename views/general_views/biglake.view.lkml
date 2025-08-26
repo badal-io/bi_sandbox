@@ -11,6 +11,8 @@ view: biglake {
   dimension: id {
     type: string
     sql: ${TABLE}.id ;;
+    html: <img src="https://www.brettcase.com/
+    product_images/{{ value }}.jpg"/> ;;
   }
 
   dimension: data {
