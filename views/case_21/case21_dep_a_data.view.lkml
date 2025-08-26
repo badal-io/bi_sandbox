@@ -18,6 +18,7 @@ view: case21_dep_a_data {
   }
 
   dimension: number {
+    label: "Number"
     type: number
     sql: ${TABLE}.number ;;
   }
