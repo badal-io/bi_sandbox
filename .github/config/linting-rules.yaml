@@ -30,4 +30,29 @@ naming_conventions:
     - join
     - limit
 
-performance_
+performance_rules:
+  avoid_select_star: true
+  recommend_indexes: true
+  limit_nested_queries: 3
+  max_sql_length: 1000
+
+security_rules:
+  require_access_filters_for_pii: true
+  no_hardcoded_secrets: true
+  require_user_attributes: false
+
+documentation_rules:
+  require_view_descriptions: true
+  require_field_descriptions: true
+  min_description_length: 10
+
+code_style_rules:
+  max_line_length: 120
+  require_consistent_indentation: true
+  prefer_explicit_types: true
+
+# Severity levels: error, warning, info
+severity_overrides:
+  missing_description: warning  # default: error
+  snake_case_violation: warning  # default: warning
+  performance_warning: info      # default: warning
