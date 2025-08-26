@@ -8,6 +8,7 @@ view: case21_dep_a_data {
     sql: ${TABLE}.category ;;
   }
 
+
   dimension_group: date {
     label: "Date"
     description: "description"
@@ -17,6 +18,8 @@ view: case21_dep_a_data {
     datatype: date
     sql: ${TABLE}.date ;;
   }
+
+
   dimension: flag {
     label: "Flag"
     description: "description"
@@ -31,6 +34,7 @@ view: case21_dep_a_data {
     sql: ${TABLE}.number ;;
   }
 
+
   measure: total_number {
     label: "Total Number"
     description: "description"
@@ -38,9 +42,11 @@ view: case21_dep_a_data {
     sql: ${number} ;;
   }
 
+
   measure: count {
     label: "Count"
     description: "description"
     type: count
   }
+
 }
