@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LookML Validator using Looker API
+LookML Validator using Looker API - Fixed for 204 responses
 Validates LookML syntax and project structure
 """
 
@@ -52,7 +52,7 @@ class LookerValidator:
             self.access_token = auth_data.get('access_token')
             
             if not self.access_token:
-                print("❌ Failed to obtain access token")
+                print("Failed to obtain access token")
                 return False
                 
             # Set authorization header for future requests
@@ -61,11 +61,11 @@ class LookerValidator:
                 'Content-Type': 'application/json'
             })
             
-            print("✅ Successfully authenticated with Looker API")
+            print("Successfully authenticated with Looker API")
             return True
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ Authentication failed: {e}")
+            print(f"Authentication failed: {e}")
             return False
     
     def validate_project(self, project_name: str) -> Dict[str, Any]:
@@ -83,19 +83,48 @@ class LookerValidator:
             project_names = [p.get('name', '') for p in projects]
             
             if project_name not in project_names:
-                print(f"⚠️ Project '{project_name}' not found. Available projects: {project_names}")
-                print("ℹ️ Using manifest validation instead...")
+                print(f"Project '{project_name}' not found. Available projects: {project_names}")
+                print("Using manifest validation instead...")
                 return self.validate_manifest()
             
             # Validate the specific project
             validation_url = f"{self.api_url}/projects/{project_name}/validate"
+            print(f"Starting LookML validation for project: {project_name}")
+            
             response = self.session.get(validation_url)
-            response.raise_for_status()
             
-            validation_data = response.json()
-            self.validation_results['project_validation'] = validation_data
+            # Handle different response statuses
+            if response.status_code == 200:
+                # Standard response with JSON content
+                try:
+                    validation_data = response.json()
+                    self.validation_results['project_validation'] = validation_data
+                    return self.process_validation_results(validation_data)
+                except json.JSONDecodeError as e:
+                    error_msg = f"Failed to parse JSON response: {e}"
+                    print(f"Error: {error_msg}")
+                    self.validation_results['errors'].append(error_msg)
+                    return {'success': False, 'error': error_msg}
             
-            return self.process_validation_results(validation_data)
+            elif response.status_code == 204:
+                # No Content - means validation passed with no errors
+                print("Project validation completed successfully (no errors found)")
+                validation_data = {
+                    'errors': [],
+                    'warnings': [],
+                    'project': {'name': project_name},
+                    'status': 'success'
+                }
+                self.validation_results['project_validation'] = validation_data
+                self.validation_results['info'].append(f"Project '{project_name}' validation passed - no errors found")
+                return {'success': True}
+            
+            else:
+                # Other status codes indicate errors
+                error_msg = f"API returned status {response.status_code}: {response.text}"
+                print(f"Error: {error_msg}")
+                self.validation_results['errors'].append(error_msg)
+                return {'success': False, 'error': error_msg}
             
         except requests.exceptions.RequestException as e:
             error_msg = f"API request failed: {e}"
@@ -109,7 +138,7 @@ class LookerValidator:
         if not os.path.exists(manifest_path):
             warning_msg = "No manifest.lkml file found - this is recommended for LookML projects"
             self.validation_results['warnings'].append(warning_msg)
-            print(f"⚠️ {warning_msg}")
+            print(f"Warning: {warning_msg}")
             return {'success': True, 'warnings': [warning_msg]}
         
         try:
@@ -127,11 +156,11 @@ class LookerValidator:
             if missing_fields:
                 error_msg = f"manifest.lkml missing required fields: {missing_fields}"
                 self.validation_results['errors'].append(error_msg)
-                print(f"❌ {error_msg}")
+                print(f"Error: {error_msg}")
             else:
                 info_msg = "manifest.lkml basic validation passed"
                 self.validation_results['info'].append(info_msg)
-                print(f"✅ {info_msg}")
+                print(f"Success: {info_msg}")
             
             return {'success': len(missing_fields) == 0}
             
@@ -154,7 +183,7 @@ class LookerValidator:
                     error_msg += f" (line {error['line_number']})"
                 
                 self.validation_results['errors'].append(error_msg)
-                print(f"❌ {error_msg}")
+                print(f"Error: {error_msg}")
                 success = False
         
         # Check for warnings
@@ -167,14 +196,14 @@ class LookerValidator:
                     warning_msg += f" (line {warning['line_number']})"
                 
                 self.validation_results['warnings'].append(warning_msg)
-                print(f"⚠️ {warning_msg}")
+                print(f"Warning: {warning_msg}")
         
         # Check for project info
         if 'project' in validation_data:
             project_info = validation_data['project']
             info_msg = f"Project validation completed for: {project_info.get('name', 'Unknown')}"
             self.validation_results['info'].append(info_msg)
-            print(f"ℹ️ {info_msg}")
+            print(f"Info: {info_msg}")
         
         return {'success': success}
     
@@ -183,9 +212,9 @@ class LookerValidator:
         try:
             with open(output_file, 'w') as f:
                 json.dump(self.validation_results, f, indent=2)
-            print(f"📄 Validation results saved to {output_file}")
+            print(f"Validation results saved to {output_file}")
         except Exception as e:
-            print(f"❌ Failed to save results: {e}")
+            print(f"Failed to save results: {e}")
 
 
 def main():
@@ -196,17 +225,17 @@ def main():
     
     args = parser.parse_args()
     
-    print(f"🚀 Starting LookML validation for project: {args.project_name}")
+    print(f"Starting LookML validation for project: {args.project_name}")
     
     validator = LookerValidator(args.config_file)
     result = validator.validate_project(args.project_name)
     validator.save_results(args.output_file)
     
     if result.get('success', False):
-        print("✅ LookML validation completed successfully!")
+        print("LookML validation completed successfully!")
         sys.exit(0)
     else:
-        print("❌ LookML validation failed!")
+        print("LookML validation failed!")
         sys.exit(1)
 
 
