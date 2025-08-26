@@ -86,7 +86,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML syntax validation..."
-        python .github/scripts/looker-validator.py --project-name="${{ github.event.repository.name }}"
+        python .github/scripts/looker-validator.py --project-name="bi_sandbox"
       continue-on-error: false
     
     # Step 2: Custom LookML Linting
@@ -102,7 +102,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🧪 Running LookML data tests..."
-        python .github/scripts/lookml-data-tests.py --project-name="${{ github.event.repository.name }}"
+        python .github/scripts/lookml-data-tests.py --project-name="bi_sandbox"
       continue-on-error: true  # Allow to continue for reporting even if data tests fail
     
     # Step 4: Generate Validation Report (updated to include data tests)
