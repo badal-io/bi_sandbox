@@ -42,6 +42,7 @@ view: case21_dep_a_data {
     sql: ${number} ;;
   }
 
+
   measure: count {
     label: "Count"
     description: "description"
