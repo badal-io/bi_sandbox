@@ -18,6 +18,7 @@ view: case21_dep_a_data {
     sql: ${TABLE}.date ;;
   }
 
+
   dimension: flag {
     label: "Flag"
     description: "description"
