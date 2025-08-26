@@ -16,6 +16,7 @@ view: case21_dep_a_data {
     type: number
     sql: ${TABLE}.flag ;;
   }
+
   dimension: number {
     type: number
     sql: ${TABLE}.number ;;
