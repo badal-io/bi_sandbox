@@ -11,7 +11,7 @@ view: chicago_crime_test {
 
   dimension: cnt {
     label: "count"
-    description: "Hidden count"
+    description: "Hidden counT"
     hidden: yes
     type: number
     sql: ${TABLE}.cnt ;;
