@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Check validation results and exit with appropriate code (Updated with Content Validation support)
+Check validation results and exit with appropriate code (Updated with SQL Validation support)
 """
 
 import json
@@ -49,6 +49,36 @@ def main():
             print(f"⚠️ Could not read linting results: {e}")
     else:
         print("ℹ️ No linting results file found")
+    
+    # Check SQL validation results
+    if os.path.exists('sql_validation_results.json'):
+        try:
+            with open('sql_validation_results.json', 'r') as f:
+                sql_validation_data = json.load(f)
+            
+            sql_errors = len(sql_validation_data.get('errors', []))
+            
+            # For SQL validation, we might want to make it non-blocking for now
+            # Uncomment the next line to make SQL validation blocking:
+            # total_errors += sql_errors
+            
+            if sql_errors > 0:
+                print(f"⚠️ Found {sql_errors} SQL validation errors (non-blocking)")
+            else:
+                print("✅ No SQL validation errors found")
+            
+            # Print summary
+            sql_summary = sql_validation_data.get('summary', {})
+            if sql_summary:
+                print(f"📊 SQL Validation Summary:")
+                print(f"   - Queries found: {sql_summary.get('total_queries_found', 0)}")
+                print(f"   - Queries with errors: {sql_summary.get('queries_with_errors', 0)}")
+                print(f"   - Queries with warnings: {sql_summary.get('queries_with_warnings', 0)}")
+                
+        except Exception as e:
+            print(f"⚠️ Could not read SQL validation results: {e}")
+    else:
+        print("ℹ️ No SQL validation results file found")
     
     # Check data tests results
     if os.path.exists('data_tests_results.json'):
