@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SQL Execution Validator for LookML - Fixed Multiline SQL Extraction
+SQL Execution Validator for LookML - Complete with Model Connection Detection
 Tests actual SQL execution against database connections using proper Looker SQL Runner API
 """
 
@@ -11,6 +11,7 @@ import configparser
 import requests
 import os
 import re
+import glob
 from typing import Dict, List, Any, Tuple, Optional
 from datetime import datetime
 import time
@@ -34,6 +35,7 @@ class SQLExecutionValidator:
         # Get available connections
         self.connections = {}
         self.default_connection = None
+        self.current_file_path = None
         
         self.validation_results = {
             'sql_executions': [],
@@ -295,7 +297,7 @@ class SQLExecutionValidator:
         return result
     
     def extract_sql_from_lookml_files(self, file_paths: List[str]) -> List[Dict[str, Any]]:
-        """Extract SQL queries from LookML files"""
+        """Extract SQL queries from LookML files - updated to track current file"""
         sql_queries = []
         
         for file_path in file_paths:
@@ -304,6 +306,9 @@ class SQLExecutionValidator:
             
             if not os.path.exists(file_path):
                 continue
+            
+            # Store current file path for model connection detection
+            self.current_file_path = file_path
             
             self.validation_results['summary']['files_processed'] += 1
             print(f"Extracting SQL from: {file_path}")
@@ -465,22 +470,81 @@ class SQLExecutionValidator:
     
     def detect_connection_for_sql(self, derived_content: str, sql_content: str) -> str:
         """Try to detect which connection to use for SQL execution"""
-        # Look for connection in derived_table
+        
+        # First, look for connection in derived_table itself
         connection_match = re.search(r'connection:\s*"([^"]+)"', derived_content)
         if connection_match:
             conn_name = connection_match.group(1)
             if conn_name in self.connections:
+                print(f"   Using connection from derived_table: {conn_name}")
                 return conn_name
         
-        # Look for BigQuery patterns in SQL
-        if 'bigquery-public-data' in sql_content or '`' in sql_content:
-            # Look for BigQuery connections
-            for conn_name, conn_info in self.connections.items():
-                if 'bigquery' in conn_info['dialect'].lower():
-                    return conn_name
+        # If not found, try to find the model file and read connection from there
+        model_connection = self.find_model_connection()
+        if model_connection and model_connection in self.connections:
+            print(f"   Using connection from model file: {model_connection}")
+            return model_connection
         
-        # Use default connection
-        return self.default_connection or list(self.connections.keys())[0] if self.connections else 'unknown'
+        # Fallback: Use default connection
+        fallback = self.default_connection or list(self.connections.keys())[0] if self.connections else 'unknown'
+        print(f"   Using fallback connection: {fallback}")
+        return fallback
+    
+    def find_model_connection(self) -> Optional[str]:
+        """Find and read connection from model files"""
+        
+        # Look for common model file patterns
+        model_patterns = [
+            '*.model.lkml',
+            '*.model', 
+            'bi_sandbox.model.lkml',  # Based on your screenshot
+            'models/*.model.lkml',
+            'models/*.model'
+        ]
+        
+        for pattern in model_patterns:
+            model_files = glob.glob(pattern)
+            for model_file in model_files:
+                print(f"   Checking model file: {model_file}")
+                
+                try:
+                    with open(model_file, 'r', encoding='utf-8') as f:
+                        model_content = f.read()
+                    
+                    # Extract connection from model file
+                    connection_match = re.search(r'connection:\s*"([^"]+)"', model_content)
+                    if connection_match:
+                        conn_name = connection_match.group(1)
+                        print(f"   Found connection in {model_file}: {conn_name}")
+                        return conn_name
+                
+                except Exception as e:
+                    print(f"   Error reading {model_file}: {e}")
+                    continue
+        
+        # Also check if there's a model file in the same directory as the view
+        if self.current_file_path:
+            view_dir = os.path.dirname(self.current_file_path)
+            model_files_in_dir = glob.glob(os.path.join(view_dir, '*.model*'))
+            
+            for model_file in model_files_in_dir:
+                print(f"   Checking nearby model file: {model_file}")
+                try:
+                    with open(model_file, 'r', encoding='utf-8') as f:
+                        model_content = f.read()
+                    
+                    connection_match = re.search(r'connection:\s*"([^"]+)"', model_content)
+                    if connection_match:
+                        conn_name = connection_match.group(1)
+                        print(f"   Found connection in {model_file}: {conn_name}")
+                        return conn_name
+                
+                except Exception as e:
+                    print(f"   Error reading {model_file}: {e}")
+                    continue
+        
+        print(f"   No model file with connection found")
+        return None
     
     def run_sql_execution_tests(self, file_paths: List[str]) -> bool:
         """Main function to run SQL execution tests"""
