@@ -28,7 +28,7 @@ view: chicago_crime_test {
 
   dimension: primary_type {
     label: "Primary TYPE"
-    description: "Type which is primary"
+    description: "Type which is prim"
     type: string
     sql: ${TABLE}.primary_type ;;
   }
