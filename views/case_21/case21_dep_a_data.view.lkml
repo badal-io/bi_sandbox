@@ -8,7 +8,6 @@ view: case21_dep_a_data {
     sql: ${TABLE}.category ;;
   }
 
-
   dimension_group: date {
     label: "Date"
     description: "description"
