@@ -97,13 +97,13 @@ jobs:
         python .github/scripts/lookml-linter.py --files="${{ steps.changed-files.outputs.all_changed_files }}"
       continue-on-error: false
     
-    # Step 3: NEW - SQL Query Validation
+    # Step 3: SQL Query Validation
     - name: Run SQL Query Validation
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "Running SQL query validation..."
         python .github/scripts/sql-query-validator.py --files="${{ steps.changed-files.outputs.all_changed_files }}" --project-name="bi_sandbox"
-      continue-on-error: true  # Non-blocking for now, can be made blocking later
+      continue-on-error: false  # Make this BLOCKING - SQL execution errors should fail the pipeline
     
     # Step 4: LookML Data Tests
     - name: Run LookML Data Tests
