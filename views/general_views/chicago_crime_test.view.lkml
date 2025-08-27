@@ -1,7 +1,7 @@
 view: chicago_crime_test {
   derived_table: {
     sql: select
-          primary_type
+          primary_type,
           count(*) as cnt
           from `bigquery-public-data.chicago_crime.crime`
           where date>='2025-01-01'
@@ -11,11 +11,12 @@ view: chicago_crime_test {
 
   dimension: cnt {
     label: "count"
-    description: "hidden count"
+    description: "Hidden counT"
     hidden: yes
     type: number
     sql: ${TABLE}.cnt ;;
   }
+
 
   measure: total_count {
     label: "Total Count"
@@ -24,10 +25,12 @@ view: chicago_crime_test {
     sql: ${cnt} ;;
   }
 
+
   dimension: primary_type {
     label: "Primary TYPE"
-    description: "Type which is primary"
+    description: "Type which is prim"
     type: string
     sql: ${TABLE}.primary_type ;;
   }
+
 }
