@@ -1,7 +1,6 @@
 view: chicago_crime {
   derived_table: {
-    sql: select *,
-            'name' as field_name
+    sql: select *
              from `bigquery-public-data.chicago_crime.crime`
              where date>='2025-01-01'
             ;;
@@ -9,12 +8,6 @@ view: chicago_crime {
 
   measure: count {
     type: count
-  }
-
-  dimension: field_name {
-    label: "Field Name"
-    type: string
-    sql: ${TABLE}.field_name ;;
   }
 
   dimension: unique_key {
