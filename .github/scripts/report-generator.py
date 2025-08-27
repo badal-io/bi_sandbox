@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Updated .github/scripts/report-generator.py
+# Fixed .github/scripts/report-generator.py
 """
-Generate validation reports for GitHub Actions (Updated with SQL Validation support)
+Generate validation reports for GitHub Actions (Fixed SQL Validation structure)
 """
 
 import json
@@ -32,7 +32,7 @@ def generate_github_summary():
         except Exception as e:
             print(f"Warning: Could not read linting results: {e}")
     
-    # Read SQL validation results
+    # Read SQL validation results (fixed structure)
     sql_validation_data = {}
     if os.path.exists('sql_validation_results.json'):
         try:
@@ -64,8 +64,12 @@ def generate_github_summary():
     files_processed = set()
     files_processed.update(validation_data.get('files_processed', []))
     files_processed.update(linting_data.get('files_processed', []))
-    if sql_validation_data.get('summary'):
-        files_processed.update([q['query_info']['file_path'] for q in sql_validation_data.get('sql_validations', [])])
+    
+    # Fixed: Get files from SQL executions (correct structure)
+    if sql_validation_data.get('sql_executions'):
+        for execution in sql_validation_data['sql_executions']:
+            if execution.get('query_info', {}).get('file_path'):
+                files_processed.add(execution['query_info']['file_path'])
     
     if files_processed:
         for file in sorted(files_processed):
@@ -106,33 +110,33 @@ def generate_github_summary():
     
     summary_lines.append("")
     
-    # SQL Validation results
-    summary_lines.append("### SQL Validation Results:")
+    # SQL Execution results (fixed structure)
+    summary_lines.append("### SQL Execution Testing Results:")
     if sql_validation_data and sql_validation_data.get('summary'):
         sql_summary = sql_validation_data['summary']
         
-        summary_lines.append(f"#### SQL Query Analysis:")
-        summary_lines.append(f"- Total SQL queries found: {sql_summary['total_queries_found']}")
-        summary_lines.append(f"- Queries validated: {sql_summary['total_queries_validated']}")
-        summary_lines.append(f"- Queries with errors: {sql_summary['queries_with_errors']}")
-        summary_lines.append(f"- Queries with warnings: {sql_summary['queries_with_warnings']}")
+        summary_lines.append(f"#### SQL Execution Analysis:")
+        summary_lines.append(f"- Total SQL queries found: {sql_summary.get('total_queries_found', 0)}")
+        summary_lines.append(f"- Queries tested: {sql_summary.get('total_queries_tested', 0)}")
+        summary_lines.append(f"- Queries passed: {sql_summary.get('queries_passed', 0)}")
+        summary_lines.append(f"- Queries with execution errors: {sql_summary.get('queries_with_execution_errors', 0)}")
         
-        if sql_summary['queries_with_errors'] > 0:
-            summary_lines.append("- **SQL Queries with Errors:**")
+        if sql_summary.get('queries_with_execution_errors', 0) > 0:
+            summary_lines.append("- **SQL Execution Errors:**")
             sql_errors = sql_validation_data.get('errors', [])
             for error in sql_errors[:5]:  # Show first 5 errors
                 summary_lines.append(f"  - {error}")
         
-        if sql_summary['queries_with_warnings'] > 0:
-            summary_lines.append("- **SQL Queries with Warnings:**")
-            sql_warnings = sql_validation_data.get('warnings', [])
+        sql_warnings = sql_validation_data.get('warnings', [])
+        if sql_warnings:
+            summary_lines.append("- **SQL Execution Warnings:**")
             for warning in sql_warnings[:3]:  # Show first 3 warnings
                 summary_lines.append(f"  - {warning}")
         
-        if sql_summary['queries_with_errors'] == 0 and sql_summary['queries_with_warnings'] == 0:
-            summary_lines.append("#### ✅ All SQL queries validated successfully!")
+        if sql_summary.get('queries_with_execution_errors', 0) == 0:
+            summary_lines.append("#### ✅ All SQL queries executed successfully!")
     else:
-        summary_lines.append("#### No SQL validation executed")
+        summary_lines.append("#### No SQL execution testing performed")
     
     summary_lines.append("")
     
@@ -294,10 +298,10 @@ def generate_pr_comment():
             comment_lines.append(f"- {error}")
         comment_lines.append("")
     
-    # Process SQL validation errors
+    # Process SQL execution errors (fixed structure)
     sql_errors = sql_validation_data.get('errors', [])
     if sql_errors:
-        comment_lines.append("### SQL Validation Errors")
+        comment_lines.append("### SQL Execution Errors")
         for error in sql_errors:
             comment_lines.append(f"- {error}")
         comment_lines.append("")
@@ -418,13 +422,13 @@ def generate_pr_comment():
     linting_icon = "✅" if linting_errors == 0 else "❌"
     comment_lines.append(f"**LookML Linting:** {linting_icon}")
     
-    # SQL Validation status
+    # SQL Execution Testing status (fixed structure)
     sql_errors = len(sql_validation_data.get('errors', []))
     if sql_validation_data and sql_validation_data.get('summary'):
         sql_icon = "✅" if sql_errors == 0 else "❌"
     else:
         sql_icon = "⚪"  # Not run
-    comment_lines.append(f"**SQL Query Validation:** {sql_icon}")
+    comment_lines.append(f"**SQL Execution Testing:** {sql_icon}")
     
     # LookML Data Tests status
     if data_tests_data and data_tests_data.get('summary'):
@@ -444,14 +448,14 @@ def generate_pr_comment():
     
     comment_lines.append("")
     
-    # Add SQL validation summary
+    # Add SQL execution testing summary (fixed structure)
     if sql_validation_data and sql_validation_data.get('summary'):
         sql_summary = sql_validation_data['summary']
-        comment_lines.append("### SQL Validation Summary")
+        comment_lines.append("### SQL Execution Testing Summary")
         comment_lines.append(f"- SQL queries found: {sql_summary.get('total_queries_found', 0)}")
-        comment_lines.append(f"- Queries validated: {sql_summary.get('total_queries_validated', 0)}")
-        comment_lines.append(f"- Queries with errors: {sql_summary.get('queries_with_errors', 0)}")
-        comment_lines.append(f"- Queries with warnings: {sql_summary.get('queries_with_warnings', 0)}")
+        comment_lines.append(f"- Queries tested: {sql_summary.get('total_queries_tested', 0)}")
+        comment_lines.append(f"- Queries passed: {sql_summary.get('queries_passed', 0)}")
+        comment_lines.append(f"- Queries with errors: {sql_summary.get('queries_with_execution_errors', 0)}")
         comment_lines.append("")
     
     # Add data tests summary
