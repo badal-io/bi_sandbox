@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SQL Execution Validator for LookML - Corrected Two-Step API Workflow
+SQL Execution Validator for LookML - Fixed Multiline SQL Extraction
 Tests actual SQL execution against database connections using proper Looker SQL Runner API
 """
 
@@ -60,7 +60,7 @@ class SQLExecutionValidator:
         }
         
         try:
-            print("🔐 Authenticating with Looker API...")
+            print("Authenticating with Looker API...")
             response = self.session.post(login_url, data=login_data)
             response.raise_for_status()
             
@@ -68,7 +68,7 @@ class SQLExecutionValidator:
             self.access_token = auth_data.get('access_token')
             
             if not self.access_token:
-                print("❌ Failed to obtain access token")
+                print("Failed to obtain access token")
                 return False
                 
             self.session.headers.update({
@@ -76,17 +76,17 @@ class SQLExecutionValidator:
                 'Content-Type': 'application/json'
             })
             
-            print("✅ Successfully authenticated with Looker API")
+            print("Successfully authenticated with Looker API")
             return True
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ Authentication failed: {e}")
+            print(f"Authentication failed: {e}")
             return False
     
     def get_connections(self) -> Dict[str, Dict[str, Any]]:
         """Get available database connections from Looker"""
         try:
-            print("🔗 Fetching available connections...")
+            print("Fetching available connections...")
             connections_url = f"{self.api_url}/connections"
             response = self.session.get(connections_url)
             response.raise_for_status()
@@ -103,11 +103,11 @@ class SQLExecutionValidator:
                         'host': conn.get('host', 'unknown')
                     }
             
-            print(f"🔗 Found {len(connections)} available connections:")
+            print(f"Found {len(connections)} available connections:")
             for name, info in connections.items():
                 print(f"  • {name} ({info['dialect']}) - {info['database']}")
             
-            # Set default connection (you might want to configure this)
+            # Set default connection
             if connections:
                 # Look for specific connection names first
                 preferred_connections = ['badal_internal_projects', 'bigquery', 'default']
@@ -120,13 +120,13 @@ class SQLExecutionValidator:
                 if not self.default_connection:
                     self.default_connection = list(connections.keys())[0]
                 
-                print(f"🎯 Default connection: {self.default_connection}")
+                print(f"Default connection: {self.default_connection}")
             
             self.connections = connections
             return connections
             
         except Exception as e:
-            print(f"❌ Failed to get connections: {e}")
+            print(f"Failed to get connections: {e}")
             return {}
     
     def create_sql_query(self, sql: str, connection_name: str) -> Optional[str]:
@@ -135,7 +135,7 @@ class SQLExecutionValidator:
         Returns the query slug if successful
         """
         try:
-            print(f"📝 Creating SQL query...")
+            print(f"Creating SQL query...")
             
             # Create SQL query endpoint (correct API)
             create_url = f"{self.api_url}/sql_queries"
@@ -153,22 +153,22 @@ class SQLExecutionValidator:
                 query_slug = query_data.get('slug')
                 
                 if query_slug:
-                    print(f"✅ SQL query created successfully with slug: {query_slug}")
+                    print(f"SQL query created successfully with slug: {query_slug}")
                     return query_slug
                 else:
-                    print("❌ No query slug returned")
+                    print("No query slug returned")
                     return None
             else:
                 try:
                     error_data = response.json()
                     error_message = error_data.get('message', 'Unknown error')
-                    print(f"❌ Failed to create query: {error_message}")
+                    print(f"Failed to create query: {error_message}")
                 except json.JSONDecodeError:
-                    print(f"❌ Failed to create query: HTTP {response.status_code}: {response.text[:200]}")
+                    print(f"Failed to create query: HTTP {response.status_code}: {response.text[:200]}")
                 return None
                 
         except Exception as e:
-            print(f"❌ Exception creating query: {e}")
+            print(f"Exception creating query: {e}")
             return None
     
     def run_sql_query(self, query_slug: str, result_format: str = 'json') -> Dict[str, Any]:
@@ -176,7 +176,7 @@ class SQLExecutionValidator:
         Step 2: Run the SQL Runner Query using correct API workflow
         """
         try:
-            print(f"🧪 Running SQL query with slug: {query_slug}")
+            print(f"Running SQL query with slug: {query_slug}")
             
             # Run SQL query endpoint (correct API)
             run_url = f"{self.api_url}/sql_queries/{query_slug}/run/{result_format}"
@@ -219,17 +219,17 @@ class SQLExecutionValidator:
                                 'query_id': query_result.get('query_id')
                             })
                         
-                        print(f"✅ Query executed successfully!")
-                        print(f"⏱️ Execution time: {execution_time:.2f} seconds")
-                        print(f"📊 Returned {result.get('row_count', 0)} rows")
+                        print(f"Query executed successfully!")
+                        print(f"Execution time: {execution_time:.2f} seconds")
+                        print(f"Returned {result.get('row_count', 0)} rows")
                         
                     else:
                         result['raw_response'] = response.text
-                        print(f"✅ Query executed successfully in {result_format} format")
+                        print(f"Query executed successfully in {result_format} format")
                 
                 except json.JSONDecodeError:
                     result['raw_response'] = response.text
-                    print(f"✅ Query executed successfully (non-JSON response)")
+                    print(f"Query executed successfully (non-JSON response)")
             
             else:
                 # Handle error response
@@ -240,16 +240,16 @@ class SQLExecutionValidator:
                     # Parse specific error types for better reporting
                     if any(keyword in error_message.lower() for keyword in ['syntax', 'parse', 'invalid']):
                         result['errors'].append(f"Syntax Error: {error_message}")
-                        print(f"❌ Syntax Error: {error_message}")
+                        print(f"Syntax Error: {error_message}")
                     elif any(keyword in error_message.lower() for keyword in ['not exist', 'not found', 'unknown']):
                         result['errors'].append(f"Schema Error: {error_message}")
-                        print(f"❌ Schema Error: {error_message}")
+                        print(f"Schema Error: {error_message}")
                     elif any(keyword in error_message.lower() for keyword in ['permission', 'access', 'denied']):
                         result['errors'].append(f"Permission Error: {error_message}")
-                        print(f"❌ Permission Error: {error_message}")
+                        print(f"Permission Error: {error_message}")
                     else:
                         result['errors'].append(f"Execution Error: {error_message}")
-                        print(f"❌ Execution Error: {error_message}")
+                        print(f"Execution Error: {error_message}")
                     
                     # Include full error details for debugging
                     result['error_details'] = error_data
@@ -257,7 +257,7 @@ class SQLExecutionValidator:
                 except json.JSONDecodeError:
                     error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
                     result['errors'].append(error_msg)
-                    print(f"❌ {error_msg}")
+                    print(f"{error_msg}")
             
             return result
             
@@ -269,15 +269,15 @@ class SQLExecutionValidator:
                 'timestamp': datetime.now().isoformat(),
                 'query_slug': query_slug
             }
-            print(f"❌ Exception running query: {e}")
+            print(f"Exception running query: {e}")
             return error_result
     
     def execute_sql_complete_workflow(self, sql: str, connection_name: str) -> Dict[str, Any]:
         """
         Complete two-step workflow: Create and run SQL query
         """
-        print(f"🚀 Executing SQL query on connection: {connection_name}")
-        print(f"📝 Query preview: {sql[:100]}{'...' if len(sql) > 100 else ''}")
+        print(f"Executing SQL query on connection: {connection_name}")
+        print(f"Query preview: {sql[:100]}{'...' if len(sql) > 100 else ''}")
         
         # Step 1: Create the query
         query_slug = self.create_sql_query(sql, connection_name)
@@ -306,7 +306,7 @@ class SQLExecutionValidator:
                 continue
             
             self.validation_results['summary']['files_processed'] += 1
-            print(f"🔍 Extracting SQL from: {file_path}")
+            print(f"Extracting SQL from: {file_path}")
             
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -326,64 +326,142 @@ class SQLExecutionValidator:
             except Exception as e:
                 error_msg = f"Error reading file {file_path}: {e}"
                 self.validation_results['errors'].append(error_msg)
-                print(f"❌ {error_msg}")
+                print(f"Error: {error_msg}")
         
         self.validation_results['summary']['total_queries_found'] = len(sql_queries)
         return sql_queries
     
     def extract_derived_table_sql(self, content: str, file_path: str) -> List[Dict[str, Any]]:
-        """Extract SQL from derived tables - these are the most important to test"""
+        """Extract SQL from derived tables - fixed for multiline SQL"""
         sql_queries = []
         
-        # Pattern to match view with derived_table
-        view_pattern = r'view:\s+(\w+)\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
-        view_matches = re.finditer(view_pattern, content, re.DOTALL)
+        print(f"   Extracting from: {file_path}")
         
-        for match in view_matches:
-            view_name = match.group(1)
-            view_content = match.group(2)
+        # More robust view pattern that handles your formatting
+        view_pattern = r'view:\s*(\w+)\s*\{'
+        view_matches = re.finditer(view_pattern, content)
+        
+        for view_match in view_matches:
+            view_name = view_match.group(1)
+            print(f"   Found view: {view_name}")
             
-            # Look for derived_table with sql
-            derived_table_pattern = r'derived_table:\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
-            derived_match = re.search(derived_table_pattern, view_content, re.DOTALL)
+            # Find the view content by matching braces
+            view_start = view_match.end() - 1  # Position of opening brace
+            view_content = self.extract_balanced_braces(content, view_start)
+            
+            if not view_content:
+                print(f"   Could not extract content for view: {view_name}")
+                continue
+                
+            # Look for derived_table within the view
+            derived_pattern = r'derived_table:\s*\{'
+            derived_match = re.search(derived_pattern, view_content)
             
             if derived_match:
-                derived_content = derived_match.group(1)
+                print(f"   Found derived_table in: {view_name}")
                 
-                # Extract SQL from derived table
-                sql_pattern = r'sql:\s*(.*?)(?=\s*(?:datagroup_trigger|distribution_style|sortkeys|indexes|persist_for|\}|;;))'
-                sql_match = re.search(sql_pattern, derived_content, re.DOTALL)
+                # Extract derived_table content
+                derived_start = derived_match.end() - 1
+                derived_content = self.extract_balanced_braces(view_content, derived_start)
                 
-                if sql_match:
-                    sql_content = sql_match.group(1).strip()
-                    # Clean up the SQL
-                    sql_content = self.clean_sql(sql_content)
+                if not derived_content:
+                    print(f"   Could not extract derived_table content")
+                    continue
+                
+                print(f"   Derived table content preview: {derived_content[:100]}...")
+                
+                # Extract SQL from derived_table - handle multiline format
+                sql_content = self.extract_multiline_sql(derived_content)
+                
+                if sql_content:
+                    print(f"   Extracted SQL: {sql_content[:100]}...")
                     
-                    if sql_content and len(sql_content) > 10:  # Only substantial SQL
-                        # Try to detect connection from the derived_table or use default
-                        connection_name = self.detect_connection_for_sql(derived_content, sql_content)
-                        
-                        sql_queries.append({
-                            'type': 'derived_table',
-                            'view_name': view_name,
-                            'file_path': file_path,
-                            'sql_content': sql_content,
-                            'connection_name': connection_name,
-                            'line_number': content[:match.start()].count('\n') + 1,
-                            'context': f"view: {view_name} > derived_table"
-                        })
+                    connection_name = self.detect_connection_for_sql(derived_content, sql_content)
+                    
+                    sql_queries.append({
+                        'type': 'derived_table',
+                        'view_name': view_name,
+                        'file_path': file_path,
+                        'sql_content': sql_content,
+                        'connection_name': connection_name,
+                        'line_number': content[:view_match.start()].count('\n') + 1,
+                        'context': f"view: {view_name} > derived_table"
+                    })
+                    
+                    print(f"   Added SQL query for validation: {view_name}")
+                else:
+                    print(f"   No SQL content found in derived_table")
+            else:
+                print(f"   No derived_table found in view: {view_name}")
         
         return sql_queries
     
-    def clean_sql(self, sql_content: str) -> str:
-        """Clean SQL content for execution"""
-        # Remove LookML comment delimiters
-        sql_content = re.sub(r';;.*$', '', sql_content, flags=re.MULTILINE)
-        # Clean up whitespace but preserve structure
-        lines = sql_content.split('\n')
-        cleaned_lines = [line.strip() for line in lines if line.strip()]
-        sql_content = '\n'.join(cleaned_lines)
-        return sql_content.strip()
+    def extract_balanced_braces(self, content: str, start_pos: int) -> str:
+        """Extract content between balanced braces starting at start_pos"""
+        if start_pos >= len(content) or content[start_pos] != '{':
+            return ""
+        
+        brace_count = 0
+        i = start_pos
+        
+        while i < len(content):
+            char = content[i]
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    # Found matching closing brace
+                    return content[start_pos + 1:i].strip()
+            i += 1
+        
+        # Braces not balanced, return rest of content
+        return content[start_pos + 1:].strip()
+    
+    def extract_multiline_sql(self, derived_content: str) -> str:
+        """Extract SQL from derived_table content, handling multiline format"""
+        
+        # Look for sql: followed by content until ;;
+        # This handles your multiline format:
+        # sql: select
+        #      primary_type
+        #      count(*) as cnt
+        #      ...
+        #      ;;
+        
+        sql_pattern = r'sql:\s*(.*?);;'
+        match = re.search(sql_pattern, derived_content, re.DOTALL)
+        
+        if match:
+            sql_raw = match.group(1)
+            print(f"   Raw SQL found: {repr(sql_raw[:100])}")
+            
+            # Clean up the SQL
+            sql_cleaned = self.clean_multiline_sql(sql_raw)
+            return sql_cleaned
+        
+        print(f"   No SQL pattern matched in: {derived_content[:100]}")
+        return ""
+    
+    def clean_multiline_sql(self, sql_raw: str) -> str:
+        """Clean multiline SQL content"""
+        
+        # Split into lines and clean each line
+        lines = []
+        for line in sql_raw.split('\n'):
+            cleaned_line = line.strip()
+            # Skip empty lines and SQL comments
+            if cleaned_line and not cleaned_line.startswith('--'):
+                lines.append(cleaned_line)
+        
+        # Join with spaces to create single-line SQL
+        sql_cleaned = ' '.join(lines)
+        
+        # Final cleanup - normalize whitespace
+        sql_cleaned = re.sub(r'\s+', ' ', sql_cleaned).strip()
+        
+        print(f"   Cleaned SQL: {sql_cleaned}")
+        return sql_cleaned
     
     def detect_connection_for_sql(self, derived_content: str, sql_content: str) -> str:
         """Try to detect which connection to use for SQL execution"""
@@ -417,7 +495,7 @@ class SQLExecutionValidator:
         # Get available connections
         self.connections = self.get_connections()
         if not self.connections:
-            print("⚠️ No database connections available")
+            print("No database connections available")
             return False
         
         self.validation_results['summary']['connections_used'] = list(self.connections.keys())
@@ -426,15 +504,15 @@ class SQLExecutionValidator:
         sql_queries = self.extract_sql_from_lookml_files(file_paths)
         
         if not sql_queries:
-            print("ℹ️ No SQL queries found for execution testing")
+            print("No SQL queries found for execution testing")
             return True
         
-        print(f"\n🧪 Testing {len(sql_queries)} SQL queries for execution...")
+        print(f"\nTesting {len(sql_queries)} SQL queries for execution...")
         
         # Execute each SQL query using two-step workflow
         for i, sql_query in enumerate(sql_queries, 1):
             print(f"\n[{i}/{len(sql_queries)}] {sql_query['file_path']}:{sql_query['line_number']}")
-            print(f"📍 Context: {sql_query['context']}")
+            print(f"Context: {sql_query['context']}")
             
             # Execute using correct two-step API workflow
             execution_result = self.execute_sql_complete_workflow(
@@ -479,9 +557,9 @@ class SQLExecutionValidator:
         print(f"Connections available: {', '.join(summary['connections_used'])}")
         
         if summary['queries_with_execution_errors'] == 0:
-            print("\n✅ All SQL queries executed successfully!")
+            print("\nAll SQL queries executed successfully!")
         else:
-            print(f"\n❌ {summary['queries_with_execution_errors']} SQL queries failed execution")
+            print(f"\n{summary['queries_with_execution_errors']} SQL queries failed execution")
             print("\nExecution errors found:")
             for error in self.validation_results['errors'][:10]:  # Show first 10 errors
                 print(f"  • {error}")
@@ -494,9 +572,9 @@ class SQLExecutionValidator:
         try:
             with open(output_file, 'w') as f:
                 json.dump(self.validation_results, f, indent=2, default=str)
-            print(f"📄 SQL execution results saved to {output_file}")
+            print(f"SQL execution results saved to {output_file}")
         except Exception as e:
-            print(f"❌ Failed to save results: {e}")
+            print(f"Failed to save results: {e}")
 
 
 def main():
@@ -509,7 +587,7 @@ def main():
     
     files_to_test = args.files.split()
     
-    print(f"🚀 Starting SQL execution testing for {len(files_to_test)} files")
+    print(f"Starting SQL execution testing for {len(files_to_test)} files")
     print("Using correct two-step Looker SQL Runner API workflow")
     
     validator = SQLExecutionValidator(args.config_file)
@@ -518,10 +596,10 @@ def main():
     validator.save_results(args.output_file)
     
     if success:
-        print("✅ All SQL execution tests passed!")
+        print("All SQL execution tests passed!")
         sys.exit(0)
     else:
-        print("❌ SQL execution tests found errors!")
+        print("SQL execution tests found errors!")
         sys.exit(1)
 
 
