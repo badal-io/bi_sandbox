@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-SQL Query Validator for LookML Views and Explores
-Validates SQL queries defined in LookML files using Looker API
+SQL Execution Validator for LookML
+Tests actual SQL execution against database connections using Looker API
 """
 
 import json
@@ -16,7 +16,7 @@ from datetime import datetime
 import time
 
 
-class SQLQueryValidator:
+class SQLExecutionValidator:
     def __init__(self, config_file: str = 'looker.ini'):
         self.config = configparser.ConfigParser()
         self.config.read(config_file)
@@ -31,37 +31,22 @@ class SQLQueryValidator:
         self.session = requests.Session()
         self.access_token = None
         
+        # Get available connections
+        self.connections = {}
+        
         self.validation_results = {
-            'sql_validations': [],
+            'sql_executions': [],
             'summary': {
                 'total_queries_found': 0,
-                'total_queries_validated': 0,
-                'queries_with_errors': 0,
-                'queries_with_warnings': 0,
-                'files_processed': 0
+                'total_queries_tested': 0,
+                'queries_with_execution_errors': 0,
+                'queries_passed': 0,
+                'files_processed': 0,
+                'connections_used': []
             },
             'errors': [],
             'warnings': [],
             'timestamp': datetime.now().isoformat()
-        }
-        
-        # SQL validation rules
-        self.sql_rules = {
-            'performance': {
-                'avoid_select_star': True,
-                'require_where_clause_for_large_tables': True,
-                'limit_without_order_by': True,
-                'avoid_functions_in_where': True
-            },
-            'security': {
-                'no_hardcoded_credentials': True,
-                'avoid_dynamic_sql': True
-            },
-            'best_practices': {
-                'use_qualified_table_names': True,
-                'avoid_reserved_words_as_aliases': True,
-                'consistent_naming_convention': True
-            }
         }
     
     def authenticate(self) -> bool:
@@ -96,6 +81,34 @@ class SQLQueryValidator:
             print(f"Authentication failed: {e}")
             return False
     
+    def get_connections(self) -> Dict[str, str]:
+        """Get available database connections from Looker"""
+        try:
+            connections_url = f"{self.api_url}/connections"
+            response = self.session.get(connections_url)
+            response.raise_for_status()
+            
+            connections_data = response.json()
+            connections = {}
+            
+            for conn in connections_data:
+                if conn.get('name') and not conn.get('name').startswith('looker'):
+                    connections[conn['name']] = {
+                        'name': conn['name'],
+                        'dialect': conn.get('dialect', {}).get('name', 'unknown'),
+                        'database': conn.get('database', 'unknown')
+                    }
+            
+            print(f"Found {len(connections)} available connections:")
+            for name, info in connections.items():
+                print(f"  - {name} ({info['dialect']})")
+            
+            return connections
+            
+        except Exception as e:
+            print(f"Failed to get connections: {e}")
+            return {}
+    
     def extract_sql_from_lookml_files(self, file_paths: List[str]) -> List[Dict[str, Any]]:
         """Extract SQL queries from LookML files"""
         sql_queries = []
@@ -114,17 +127,19 @@ class SQLQueryValidator:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                # Extract SQL from views
-                view_sqls = self.extract_view_sql(content, file_path)
-                sql_queries.extend(view_sqls)
+                # Extract SQL from different LookML contexts
+                file_queries = []
                 
-                # Extract SQL from explores (derived tables)
-                explore_sqls = self.extract_explore_sql(content, file_path)
-                sql_queries.extend(explore_sqls)
+                # Extract from derived tables
+                file_queries.extend(self.extract_derived_table_sql(content, file_path))
                 
-                # Extract SQL from dimensions/measures with sql parameters
-                field_sqls = self.extract_field_sql(content, file_path)
-                sql_queries.extend(field_sqls)
+                # Extract from dimension/measure sql (only complex SQL)
+                file_queries.extend(self.extract_complex_field_sql(content, file_path))
+                
+                sql_queries.extend(file_queries)
+                
+                if file_queries:
+                    print(f"   Found {len(file_queries)} SQL queries")
                 
             except Exception as e:
                 error_msg = f"Error reading file {file_path}: {e}"
@@ -134,11 +149,11 @@ class SQLQueryValidator:
         self.validation_results['summary']['total_queries_found'] = len(sql_queries)
         return sql_queries
     
-    def extract_view_sql(self, content: str, file_path: str) -> List[Dict[str, Any]]:
-        """Extract SQL from view definitions"""
+    def extract_derived_table_sql(self, content: str, file_path: str) -> List[Dict[str, Any]]:
+        """Extract SQL from derived tables - these are the most important to test"""
         sql_queries = []
         
-        # Pattern to match view with sql_table_name or derived_table
+        # Pattern to match view with derived_table
         view_pattern = r'view:\s+(\w+)\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
         view_matches = re.finditer(view_pattern, content, re.DOTALL)
         
@@ -154,69 +169,32 @@ class SQLQueryValidator:
                 derived_content = derived_match.group(1)
                 
                 # Extract SQL from derived table
-                sql_pattern = r'sql:\s*(.*?)(?=\s*(?:datagroup_trigger|distribution_style|sortkeys|indexes|\}|$))'
+                sql_pattern = r'sql:\s*(.*?)(?=\s*(?:datagroup_trigger|distribution_style|sortkeys|indexes|persist_for|\}|;;))'
                 sql_match = re.search(sql_pattern, derived_content, re.DOTALL)
                 
                 if sql_match:
                     sql_content = sql_match.group(1).strip()
-                    # Remove ;; delimiters and clean up
-                    sql_content = re.sub(r';;.*$', '', sql_content, flags=re.MULTILINE)
-                    sql_content = sql_content.strip(' \n\t;')
+                    # Clean up the SQL
+                    sql_content = self.clean_sql(sql_content)
                     
-                    if sql_content:
+                    if sql_content and len(sql_content) > 10:  # Only substantial SQL
+                        # Try to detect connection from sql_table_name or guess
+                        connection_name = self.detect_connection_for_sql(derived_content, sql_content)
+                        
                         sql_queries.append({
-                            'type': 'view_derived_table',
+                            'type': 'derived_table',
                             'view_name': view_name,
                             'file_path': file_path,
                             'sql_content': sql_content,
-                            'line_number': content[:match.start()].count('\n') + 1
+                            'connection_name': connection_name,
+                            'line_number': content[:match.start()].count('\n') + 1,
+                            'context': f"view: {view_name} > derived_table"
                         })
         
         return sql_queries
     
-    def extract_explore_sql(self, content: str, file_path: str) -> List[Dict[str, Any]]:
-        """Extract SQL from explore definitions (joins with sql_on)"""
-        sql_queries = []
-        
-        # Pattern to match explores
-        explore_pattern = r'explore:\s+(\w+)\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
-        explore_matches = re.finditer(explore_pattern, content, re.DOTALL)
-        
-        for match in explore_matches:
-            explore_name = match.group(1)
-            explore_content = match.group(2)
-            
-            # Look for joins with sql_on
-            join_pattern = r'join:\s+(\w+)\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
-            join_matches = re.finditer(join_pattern, explore_content, re.DOTALL)
-            
-            for join_match in join_matches:
-                join_name = join_match.group(1)
-                join_content = join_match.group(2)
-                
-                # Extract sql_on
-                sql_on_pattern = r'sql_on:\s*(.*?)(?=\s*(?:type:|relationship:|\}|$))'
-                sql_on_match = re.search(sql_on_pattern, join_content, re.DOTALL)
-                
-                if sql_on_match:
-                    sql_content = sql_on_match.group(1).strip()
-                    sql_content = re.sub(r';;.*$', '', sql_content, flags=re.MULTILINE)
-                    sql_content = sql_content.strip(' \n\t;')
-                    
-                    if sql_content:
-                        sql_queries.append({
-                            'type': 'explore_join',
-                            'explore_name': explore_name,
-                            'join_name': join_name,
-                            'file_path': file_path,
-                            'sql_content': sql_content,
-                            'line_number': content[:match.start()].count('\n') + 1
-                        })
-        
-        return sql_queries
-    
-    def extract_field_sql(self, content: str, file_path: str) -> List[Dict[str, Any]]:
-        """Extract SQL from dimension/measure sql parameters"""
+    def extract_complex_field_sql(self, content: str, file_path: str) -> List[Dict[str, Any]]:
+        """Extract complex SQL from dimensions/measures (not simple field references)"""
         sql_queries = []
         
         # Pattern to match dimensions and measures with sql
@@ -233,225 +211,266 @@ class SQLQueryValidator:
                 field_content = match.group(2)
                 
                 # Extract sql parameter
-                sql_pattern = r'sql:\s*(.*?)(?=\s*(?:type:|label:|description:|hidden:|\}|$))'
+                sql_pattern = r'sql:\s*(.*?)(?=\s*(?:type:|label:|description:|hidden:|\}|;;))'
                 sql_match = re.search(sql_pattern, field_content, re.DOTALL)
                 
                 if sql_match:
                     sql_content = sql_match.group(1).strip()
-                    sql_content = re.sub(r';;.*$', '', sql_content, flags=re.MULTILINE)
-                    sql_content = sql_content.strip(' \n\t;')
+                    sql_content = self.clean_sql(sql_content)
                     
-                    # Only include if it's actual SQL (not just field references)
-                    if sql_content and any(keyword in sql_content.upper() for keyword in 
-                                         ['SELECT', 'FROM', 'WHERE', 'JOIN', 'CASE', 'WHEN']):
+                    # Only include complex SQL (has SELECT, CASE, subqueries, functions)
+                    if self.is_complex_sql(sql_content):
+                        # For field SQL, we need to wrap it in a SELECT to test
+                        test_sql = f"SELECT ({sql_content}) as test_field FROM dual LIMIT 1"
+                        
+                        connection_name = self.detect_connection_from_context(content, field_content)
+                        
                         sql_queries.append({
                             'type': f'{field_type}_sql',
                             'field_name': field_name,
                             'field_type': field_type,
                             'file_path': file_path,
-                            'sql_content': sql_content,
-                            'line_number': content[:match.start()].count('\n') + 1
+                            'sql_content': test_sql,
+                            'original_sql': sql_content,
+                            'connection_name': connection_name,
+                            'line_number': content[:match.start()].count('\n') + 1,
+                            'context': f"{field_type}: {field_name}"
                         })
         
         return sql_queries
     
-    def validate_sql_with_looker_api(self, sql_query: Dict[str, Any], project_name: str) -> Dict[str, Any]:
-        """Validate SQL query using Looker API"""
-        try:
-            # Use the sql_runner endpoint to validate SQL
-            sql_runner_url = f"{self.api_url}/sql_runners"
-            
-            payload = {
-                'sql': sql_query['sql_content'],
-                'connection_name': 'your_connection',  # This should be configurable
-                'limit': 1  # Just validate, don't return data
-            }
-            
-            response = self.session.post(sql_runner_url, json=payload)
-            
-            validation_result = {
-                'query_info': sql_query,
-                'api_validation': {
-                    'status': 'success' if response.status_code == 200 else 'error',
-                    'status_code': response.status_code,
-                    'errors': [],
-                    'warnings': []
-                },
-                'rule_validation': self.validate_sql_rules(sql_query['sql_content']),
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            if response.status_code != 200:
-                try:
-                    error_data = response.json()
-                    validation_result['api_validation']['errors'] = [error_data.get('message', 'Unknown API error')]
-                except:
-                    validation_result['api_validation']['errors'] = [f"HTTP {response.status_code}: {response.text}"]
-            
-            return validation_result
-            
-        except Exception as e:
-            return {
-                'query_info': sql_query,
-                'api_validation': {
-                    'status': 'error',
-                    'errors': [f"Validation failed: {str(e)}"]
-                },
-                'rule_validation': self.validate_sql_rules(sql_query['sql_content']),
-                'timestamp': datetime.now().isoformat()
-            }
+    def clean_sql(self, sql_content: str) -> str:
+        """Clean SQL content for execution"""
+        # Remove LookML comment delimiters
+        sql_content = re.sub(r';;.*$', '', sql_content, flags=re.MULTILINE)
+        # Remove extra whitespace
+        sql_content = re.sub(r'\s+', ' ', sql_content.strip())
+        # Remove trailing semicolons and delimiters
+        sql_content = sql_content.strip(' \n\t;')
+        return sql_content
     
-    def validate_sql_rules(self, sql_content: str) -> Dict[str, List[str]]:
-        """Validate SQL against custom rules"""
-        errors = []
-        warnings = []
-        
+    def is_complex_sql(self, sql_content: str) -> bool:
+        """Check if SQL is complex enough to warrant execution testing"""
         sql_upper = sql_content.upper()
         
-        # Performance rules
-        if self.sql_rules['performance']['avoid_select_star']:
-            if re.search(r'SELECT\s+\*', sql_upper):
-                warnings.append("Consider avoiding SELECT * for better performance")
+        # Consider it complex if it has:
+        complex_indicators = [
+            'SELECT',      # Subqueries
+            'CASE',        # Case statements  
+            'WHEN',        # Case conditions
+            'CONCAT',      # String functions
+            'COALESCE',    # Null handling
+            'CAST',        # Type conversion
+            'EXTRACT',     # Date functions
+            'SUBSTRING',   # String manipulation
+            '(',           # Function calls
+        ]
         
-        if self.sql_rules['performance']['limit_without_order_by']:
-            if 'LIMIT' in sql_upper and 'ORDER BY' not in sql_upper:
-                warnings.append("LIMIT without ORDER BY may produce inconsistent results")
-        
-        if self.sql_rules['performance']['avoid_functions_in_where']:
-            where_functions = re.findall(r'WHERE.*?(?:UPPER|LOWER|SUBSTR|TRIM)\s*\(', sql_upper)
-            if where_functions:
-                warnings.append("Functions in WHERE clause may impact performance")
-        
-        # Security rules
-        if self.sql_rules['security']['no_hardcoded_credentials']:
-            if re.search(r'(PASSWORD|PWD|SECRET|KEY)\s*=\s*[\'"][^\'"]+[\'"]', sql_upper):
-                errors.append("Potential hardcoded credentials detected")
-        
-        # Best practices
-        if self.sql_rules['best_practices']['use_qualified_table_names']:
-            # Simple check for unqualified table names in FROM clause
-            from_matches = re.findall(r'FROM\s+(\w+)(?:\s|$|,)', sql_upper)
-            for table in from_matches:
-                if '.' not in table and table not in ['DUAL', 'INFORMATION_SCHEMA']:
-                    warnings.append(f"Consider using qualified table name for '{table}'")
-        
-        return {
-            'errors': errors,
-            'warnings': warnings
-        }
+        # Must have at least 2 indicators and be substantial
+        indicator_count = sum(1 for indicator in complex_indicators if indicator in sql_upper)
+        return indicator_count >= 2 and len(sql_content) > 20
     
-    def run_validation(self, file_paths: List[str], project_name: str = 'bi_sandbox') -> bool:
-        """Main validation function"""
+    def detect_connection_for_sql(self, derived_content: str, sql_content: str) -> str:
+        """Try to detect which connection to use for SQL execution"""
+        # Look for connection in derived_table
+        connection_match = re.search(r'connection:\s*"([^"]+)"', derived_content)
+        if connection_match:
+            return connection_match.group(1)
+        
+        # Try to detect from table names in SQL
+        if 'bigquery-public-data' in sql_content:
+            return 'bigquery_connection'  # This would need to be configured
+        
+        # Default fallback - would need to be configured per environment
+        return 'default_connection'
+    
+    def detect_connection_from_context(self, full_content: str, field_content: str) -> str:
+        """Detect connection for field SQL from context"""
+        # Look for connection in the view or model
+        connection_match = re.search(r'connection:\s*"([^"]+)"', full_content)
+        if connection_match:
+            return connection_match.group(1)
+        
+        return 'default_connection'
+    
+    def execute_sql_query(self, sql_query: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute SQL query using Looker SQL Runner API"""
+        try:
+            print(f"🧪 Testing SQL: {sql_query['context']}")
+            
+            # Use SQL Runner API
+            sql_runner_url = f"{self.api_url}/sql_runners"
+            
+            # Prepare payload
+            payload = {
+                'sql': sql_query['sql_content'],
+                'limit': 1,  # Just test execution, don't return data
+                'apply_formatting': False,
+                'cache': False  # Don't use cache for testing
+            }
+            
+            # Add connection if available
+            if sql_query['connection_name'] and sql_query['connection_name'] in self.connections:
+                payload['connection_name'] = sql_query['connection_name']
+                print(f"   Using connection: {sql_query['connection_name']}")
+            else:
+                # Try to find a working connection
+                if self.connections:
+                    payload['connection_name'] = list(self.connections.keys())[0]
+                    print(f"   Using default connection: {payload['connection_name']}")
+            
+            # Execute the query
+            response = self.session.post(sql_runner_url, json=payload)
+            
+            execution_result = {
+                'query_info': sql_query,
+                'execution_status': 'success' if response.status_code == 200 else 'error',
+                'status_code': response.status_code,
+                'errors': [],
+                'warnings': [],
+                'connection_used': payload.get('connection_name', 'unknown'),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            if response.status_code == 200:
+                print(f"   ✅ SQL execution successful")
+                self.validation_results['summary']['queries_passed'] += 1
+            else:
+                # Parse error response
+                try:
+                    error_data = response.json()
+                    error_message = error_data.get('message', 'Unknown execution error')
+                    
+                    # Check for specific error types
+                    if 'syntax' in error_message.lower() or 'parse' in error_message.lower():
+                        execution_result['errors'].append(f"Syntax Error: {error_message}")
+                        print(f"   ❌ Syntax Error: {error_message}")
+                    elif 'not exist' in error_message.lower() or 'not found' in error_message.lower():
+                        execution_result['errors'].append(f"Schema Error: {error_message}")
+                        print(f"   ❌ Schema Error: {error_message}")
+                    else:
+                        execution_result['errors'].append(f"Execution Error: {error_message}")
+                        print(f"   ❌ Execution Error: {error_message}")
+                    
+                    self.validation_results['summary']['queries_with_execution_errors'] += 1
+                    
+                except json.JSONDecodeError:
+                    error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+                    execution_result['errors'].append(error_msg)
+                    print(f"   ❌ {error_msg}")
+                    self.validation_results['summary']['queries_with_execution_errors'] += 1
+            
+            return execution_result
+            
+        except Exception as e:
+            error_result = {
+                'query_info': sql_query,
+                'execution_status': 'error',
+                'errors': [f"Execution failed: {str(e)}"],
+                'timestamp': datetime.now().isoformat()
+            }
+            print(f"   ❌ Execution failed: {str(e)}")
+            self.validation_results['summary']['queries_with_execution_errors'] += 1
+            return error_result
+    
+    def run_sql_execution_tests(self, file_paths: List[str]) -> bool:
+        """Main function to run SQL execution tests"""
         print("=" * 60)
-        print("SQL QUERY VALIDATION FOR LOOKML")
+        print("SQL EXECUTION TESTING FOR LOOKML")
         print("=" * 60)
         
         if not self.authenticate():
             return False
         
-        # Extract SQL queries from LookML files
+        # Get available connections
+        self.connections = self.get_connections()
+        if not self.connections:
+            print("⚠️ No database connections available")
+            return False
+        
+        self.validation_results['summary']['connections_used'] = list(self.connections.keys())
+        
+        # Extract SQL queries
         sql_queries = self.extract_sql_from_lookml_files(file_paths)
         
         if not sql_queries:
-            print("ℹ️ No SQL queries found in the provided files")
+            print("ℹ️ No SQL queries found for execution testing")
             return True
         
-        print(f"🔍 Found {len(sql_queries)} SQL queries to validate")
+        print(f"\n🧪 Testing {len(sql_queries)} SQL queries for execution...")
         
-        # Validate each SQL query
+        # Execute each SQL query
         for i, sql_query in enumerate(sql_queries, 1):
-            print(f"\n📋 Validating query {i}/{len(sql_queries)}: {sql_query['type']} in {sql_query['file_path']}")
+            print(f"\n[{i}/{len(sql_queries)}] {sql_query['file_path']}:{sql_query['line_number']}")
             
-            # Run rule-based validation (always)
-            rule_validation = self.validate_sql_rules(sql_query['sql_content'])
+            execution_result = self.execute_sql_query(sql_query)
+            self.validation_results['sql_executions'].append(execution_result)
+            self.validation_results['summary']['total_queries_tested'] += 1
             
-            validation_result = {
-                'query_info': sql_query,
-                'api_validation': {'status': 'skipped', 'message': 'API validation requires connection configuration'},
-                'rule_validation': rule_validation,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            # Count errors and warnings
-            total_errors = len(rule_validation['errors'])
-            total_warnings = len(rule_validation['warnings'])
-            
-            if total_errors > 0:
-                self.validation_results['summary']['queries_with_errors'] += 1
-                print(f"❌ Found {total_errors} errors")
-                for error in rule_validation['errors']:
-                    print(f"   • {error}")
-                    self.validation_results['errors'].append(f"{sql_query['file_path']}:{sql_query.get('line_number', '?')} - {error}")
-            
-            if total_warnings > 0:
-                self.validation_results['summary']['queries_with_warnings'] += 1
-                print(f"⚠️ Found {total_warnings} warnings")
-                for warning in rule_validation['warnings']:
-                    print(f"   • {warning}")
-                    self.validation_results['warnings'].append(f"{sql_query['file_path']}:{sql_query.get('line_number', '?')} - {warning}")
-            
-            if total_errors == 0 and total_warnings == 0:
-                print("✅ Query validation passed")
-            
-            self.validation_results['sql_validations'].append(validation_result)
-            self.validation_results['summary']['total_queries_validated'] += 1
+            # Collect errors for final report
+            for error in execution_result.get('errors', []):
+                error_msg = f"{sql_query['file_path']}:{sql_query['line_number']} - {error}"
+                self.validation_results['errors'].append(error_msg)
             
             # Small delay to be respectful to API
-            time.sleep(0.1)
+            time.sleep(0.2)
         
-        return self.validation_results['summary']['queries_with_errors'] == 0
+        return self.validation_results['summary']['queries_with_execution_errors'] == 0
     
     def print_summary(self):
-        """Print validation summary"""
+        """Print execution testing summary"""
         print(f"\n" + "=" * 60)
-        print("SQL VALIDATION SUMMARY")
+        print("SQL EXECUTION TESTING SUMMARY")
         print("=" * 60)
         
         summary = self.validation_results['summary']
         print(f"Files processed: {summary['files_processed']}")
         print(f"SQL queries found: {summary['total_queries_found']}")
-        print(f"Queries validated: {summary['total_queries_validated']}")
-        print(f"Queries with errors: {summary['queries_with_errors']}")
-        print(f"Queries with warnings: {summary['queries_with_warnings']}")
+        print(f"Queries tested: {summary['total_queries_tested']}")
+        print(f"Queries passed: {summary['queries_passed']}")
+        print(f"Queries with execution errors: {summary['queries_with_execution_errors']}")
+        print(f"Connections used: {', '.join(summary['connections_used'])}")
         
-        if summary['queries_with_errors'] == 0:
-            print("\n✅ All SQL validations passed!")
+        if summary['queries_with_execution_errors'] == 0:
+            print("\n✅ All SQL queries executed successfully!")
         else:
-            print(f"\n❌ {summary['queries_with_errors']} queries have errors")
+            print(f"\n❌ {summary['queries_with_execution_errors']} SQL queries failed execution")
+            print("\nExecution errors found:")
+            for error in self.validation_results['errors']:
+                print(f"  • {error}")
     
     def save_results(self, output_file: str = 'sql_validation_results.json'):
-        """Save validation results to JSON file"""
+        """Save execution results to JSON file"""
         try:
             with open(output_file, 'w') as f:
                 json.dump(self.validation_results, f, indent=2)
-            print(f"📄 SQL validation results saved to {output_file}")
+            print(f"📄 SQL execution results saved to {output_file}")
         except Exception as e:
             print(f"❌ Failed to save results: {e}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Validate SQL queries in LookML files')
-    parser.add_argument('--files', required=True, help='Space-separated list of files to validate')
-    parser.add_argument('--project-name', default='bi_sandbox', help='LookML project name')
+    parser = argparse.ArgumentParser(description='Test SQL execution for LookML queries')
+    parser.add_argument('--files', required=True, help='Space-separated list of files to test')
     parser.add_argument('--config-file', default='looker.ini', help='Looker configuration file')
     parser.add_argument('--output-file', default='sql_validation_results.json', help='Output file for results')
     
     args = parser.parse_args()
     
-    files_to_validate = args.files.split()
+    files_to_test = args.files.split()
     
-    print(f"🚀 Starting SQL validation for {len(files_to_validate)} files")
+    print(f"🚀 Starting SQL execution testing for {len(files_to_test)} files")
     
-    validator = SQLQueryValidator(args.config_file)
-    success = validator.run_validation(files_to_validate, args.project_name)
+    validator = SQLExecutionValidator(args.config_file)
+    success = validator.run_sql_execution_tests(files_to_test)
     validator.print_summary()
     validator.save_results(args.output_file)
     
     if success:
-        print("✅ SQL validation completed successfully!")
+        print("✅ All SQL execution tests passed!")
         sys.exit(0)
     else:
-        print("❌ SQL validation found errors!")
+        print("❌ SQL execution tests found errors!")
         sys.exit(1)
 
 
