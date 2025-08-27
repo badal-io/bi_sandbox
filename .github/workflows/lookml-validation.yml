@@ -81,6 +81,7 @@ jobs:
         echo "Changed LookML files:"
         echo "${{ steps.changed-files.outputs.all_changed_files }}"
     
+    # Step 1: LookML Syntax Validation
     - name: Validate LookML Syntax
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
@@ -88,6 +89,7 @@ jobs:
         python .github/scripts/looker-validator.py --project-name="bi_sandbox"
       continue-on-error: false
     
+    # Step 2: Custom LookML Linting
     - name: Run LookML Linting
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
@@ -95,6 +97,7 @@ jobs:
         python .github/scripts/lookml-linter.py --files="${{ steps.changed-files.outputs.all_changed_files }}"
       continue-on-error: false
     
+    # Step 3: LookML Data Tests
     - name: Run LookML Data Tests
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
@@ -102,12 +105,22 @@ jobs:
         python .github/scripts/lookml-data-tests.py --project-name="bi_sandbox"
       continue-on-error: true
     
+    # Step 4: Content Validation (BI Sandbox folder)
+    - name: Run Content Validation
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Running content validation for BI Sandbox folder..."
+        python .github/scripts/lookml-content-validator.py --folder-name="BI Sandbox"
+      continue-on-error: true  # Allow pipeline to continue even if content has errors
+    
+    # Step 5: Generate Validation Report
     - name: Generate Validation Report
       if: always() && steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "Generating validation report..."
         python .github/scripts/report-generator.py
     
+    # Step 6: Upload validation artifacts
     - name: Upload validation artifacts
       if: always() && steps.changed-files.outputs.any_changed == 'true'
       uses: actions/upload-artifact@v4
@@ -117,14 +130,17 @@ jobs:
           validation_results.json
           linting_results.json
           data_tests_results.json
+          content_validation_results.json
           validation_summary.md
         retention-days: 30
     
+    # Step 7: Check validation results
     - name: Check validation results
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         python .github/scripts/check-results.py
     
+    # Step 8: Comment PR with results
     - name: Comment PR with results
       if: github.event_name == 'pull_request' && steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v7
@@ -132,15 +148,42 @@ jobs:
         script: |
           const fs = require('fs');
           
-          if (fs.existsSync('pr_comment.md')) {
-            const comment = fs.readFileSync('pr_comment.md', 'utf8');
-            
-            github.rest.issues.createComment({
+          if (!fs.existsSync('pr_comment.md')) {
+            console.log('No PR comment file found');
+            return;
+          }
+          
+          const comment = fs.readFileSync('pr_comment.md', 'utf8');
+          
+          // Check for existing comments from this workflow
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          // Look for existing LookML validation comment
+          const botComment = comments.find(comment => 
+            comment.user.login === 'github-actions[bot]' && 
+            comment.body.includes('LookML Validation Results')
+          );
+          
+          if (botComment) {
+            // Update existing comment
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: comment
+            });
+            console.log('Updated existing PR comment');
+          } else {
+            // Create new comment
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: comment
             });
-          } else {
-            console.log('No PR comment file found');
+            console.log('Created new PR comment');
           }
