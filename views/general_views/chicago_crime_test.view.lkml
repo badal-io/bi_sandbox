@@ -1,7 +1,7 @@
 view: chicago_crime_test {
   derived_table: {
     sql: select
-          primary_type,
+          primary_type
           count(*) as cnt
           from `bigquery-public-data.chicago_crime.crime`
           where date>='2025-01-01'
