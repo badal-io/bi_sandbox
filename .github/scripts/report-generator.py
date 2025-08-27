@@ -1,6 +1,7 @@
+#!/usr/bin/env python3
 # Updated .github/scripts/report-generator.py
 """
-Generate validation reports for GitHub Actions (Updated with Data Tests support)
+Generate validation reports for GitHub Actions (Updated with Content Validation support)
 """
 
 import json
@@ -40,6 +41,15 @@ def generate_github_summary():
         except Exception as e:
             print(f"Warning: Could not read data tests results: {e}")
     
+    # Read content validation results
+    content_validation_data = {}
+    if os.path.exists('content_validation_results.json'):
+        try:
+            with open('content_validation_results.json', 'r') as f:
+                content_validation_data = json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not read content validation results: {e}")
+    
     # Add files processed
     summary_lines.append("### Files Processed:")
     files_processed = set()
@@ -62,7 +72,7 @@ def generate_github_summary():
         for error in validation_errors:
             summary_lines.append(f"- {error}")
     else:
-        summary_lines.append("#### ✓ No syntax errors found!")
+        summary_lines.append("#### ✅ No syntax errors found!")
     
     summary_lines.append("")
     
@@ -81,7 +91,7 @@ def generate_github_summary():
             summary_lines.append(f"- {warning}")
     
     if not linting_errors and not linting_warnings:
-        summary_lines.append("#### ✓ No linting issues found!")
+        summary_lines.append("#### ✅ No linting issues found!")
     
     summary_lines.append("")
     
@@ -122,6 +132,43 @@ def generate_github_summary():
     else:
         summary_lines.append("#### No data tests executed")
     
+    # Content validation results
+    summary_lines.append("")
+    summary_lines.append("### Content Validation Results:")
+    if content_validation_data and content_validation_data.get('summary'):
+        content_summary = content_validation_data['summary']
+        
+        total_content = sum(content_summary.get('total_content_validated', {}).values())
+        summary_lines.append(f"#### Content Statistics:")
+        summary_lines.append(f"- Total content validated: {total_content}")
+        summary_lines.append(f"- BI Sandbox errors: {content_summary.get('bi_sandbox_errors', 0)}")
+        summary_lines.append(f"- All content errors: {content_summary.get('total_errors_all_content', 0)}")
+        
+        if content_summary.get('bi_sandbox_errors', 0) > 0:
+            summary_lines.append("- **BI Sandbox Content Issues:**")
+            filtered_content = content_summary.get('filtered_content', [])
+            for item in filtered_content[:5]:  # Show first 5 items
+                errors = item.get('errors', [])
+                if errors:
+                    content_type = "Unknown"
+                    content_name = "Unknown"
+                    
+                    if item.get('look'):
+                        content_type = "Look"
+                        content_name = item['look'].get('title', 'Unnamed Look')
+                    elif item.get('dashboard'):
+                        content_type = "Dashboard"
+                        content_name = item['dashboard'].get('title', 'Unnamed Dashboard')
+                    elif item.get('dashboard_element'):
+                        content_type = "Dashboard Element"
+                        content_name = item['dashboard_element'].get('title', 'Unnamed Element')
+                    
+                    summary_lines.append(f"  - {content_type}: {content_name} ({len(errors)} errors)")
+        else:
+            summary_lines.append("#### ✅ No content validation errors found in BI Sandbox!")
+    else:
+        summary_lines.append("#### No content validation executed")
+    
     # Write to GitHub Actions step summary
     summary_content = "\n".join(summary_lines)
     
@@ -152,6 +199,7 @@ def generate_pr_comment():
     validation_data = {}
     linting_data = {}
     data_tests_data = {}
+    content_validation_data = {}
     
     try:
         if os.path.exists('validation_results.json'):
@@ -173,6 +221,13 @@ def generate_pr_comment():
                 data_tests_data = json.load(f)
     except Exception as e:
         comment_lines.append(f"Could not read data tests results: {e}\n")
+    
+    try:
+        if os.path.exists('content_validation_results.json'):
+            with open('content_validation_results.json', 'r') as f:
+                content_validation_data = json.load(f)
+    except Exception as e:
+        comment_lines.append(f"Could not read content validation results: {e}\n")
     
     # Process validation errors
     validation_errors = validation_data.get('errors', [])
@@ -219,6 +274,46 @@ def generate_pr_comment():
             
             comment_lines.append("")
     
+    # Process content validation errors
+    if content_validation_data and content_validation_data.get('summary'):
+        content_summary = content_validation_data['summary']
+        
+        if content_summary.get('bi_sandbox_errors', 0) > 0:
+            comment_lines.append("### Content Validation Errors")
+            filtered_content = content_summary.get('filtered_content', [])
+            
+            for i, item in enumerate(filtered_content):
+                errors = item.get('errors', [])
+                if errors:
+                    # Extract content info
+                    content_type = "Unknown"
+                    content_name = "Unknown"
+                    folder_name = "Unknown"
+                    
+                    if item.get('look'):
+                        content_type = "Look"
+                        content_name = item['look'].get('title', 'Unnamed Look')
+                        if item['look'].get('folder'):
+                            folder_name = item['look']['folder'].get('name', 'No folder')
+                    elif item.get('dashboard'):
+                        content_type = "Dashboard"
+                        content_name = item['dashboard'].get('title', 'Unnamed Dashboard')
+                        if item['dashboard'].get('folder'):
+                            folder_name = item['dashboard']['folder'].get('name', 'No folder')
+                    elif item.get('dashboard_element'):
+                        content_type = "Dashboard Element"
+                        content_name = item['dashboard_element'].get('title', 'Unnamed Element')
+                        if item.get('dashboard') and item['dashboard'].get('folder'):
+                            folder_name = item['dashboard']['folder'].get('name', 'No folder')
+                    
+                    comment_lines.append(f"**{content_type}: {content_name}** (Folder: {folder_name})")
+                    for error in errors:
+                        model_name = error.get('model_name', 'Unknown')
+                        message = error.get('message', 'No message')
+                        comment_lines.append(f"- Model {model_name}: {message}")
+            
+            comment_lines.append("")
+    
     # Process warnings
     validation_warnings = validation_data.get('warnings', [])
     linting_warnings = linting_data.get('warnings', [])
@@ -234,19 +329,53 @@ def generate_pr_comment():
         comment_lines.append("")
     
     if all_warnings:
-        comment_lines.append("### Warnings")
+        comment_lines.append("### Other Warnings")
         for warning in all_warnings:
             comment_lines.append(f"- {warning}")
         comment_lines.append("")
     
-    # Success message if no errors or warnings
-    total_errors = len(validation_errors) + len(linting_errors)
+    # Calculate total errors for success message
+    total_errors = len(validation_data.get('errors', [])) + len(linting_data.get('errors', []))
     if data_tests_data and data_tests_data.get('summary'):
         total_errors += data_tests_data['summary'].get('failed_models', 0) + data_tests_data['summary'].get('failed_tests', 0)
+    if content_validation_data and content_validation_data.get('summary'):
+        total_errors += content_validation_data['summary'].get('bi_sandbox_errors', 0)
     
+    # Success message if no errors or warnings
     if total_errors == 0 and not all_warnings:
-        comment_lines.append("### All validations passed!")
+        comment_lines.append("### ✅ All validations passed!")
         comment_lines.append("")
+    
+    # Add summary with status icons
+    comment_lines.append("### Summary")
+    
+    # LookML Validation status
+    validation_errors = len(validation_data.get('errors', []))
+    validation_icon = "✅" if validation_errors == 0 else "❌"
+    comment_lines.append(f"**LookML Validation:** {validation_icon}")
+    
+    # LookML Linting status
+    linting_errors = len(linting_data.get('errors', []))
+    linting_icon = "✅" if linting_errors == 0 else "❌"
+    comment_lines.append(f"**LookML Linting:** {linting_icon}")
+    
+    # LookML Data Tests status
+    if data_tests_data and data_tests_data.get('summary'):
+        data_test_errors = data_tests_data['summary'].get('failed_models', 0) + data_tests_data['summary'].get('failed_tests', 0)
+        data_tests_icon = "✅" if data_test_errors == 0 else "❌"
+    else:
+        data_tests_icon = "⚪"  # Not run
+    comment_lines.append(f"**LookML Data Tests:** {data_tests_icon}")
+    
+    # Looker Content Validation status
+    if content_validation_data and content_validation_data.get('summary'):
+        content_errors = content_validation_data['summary'].get('bi_sandbox_errors', 0)
+        content_icon = "✅" if content_errors == 0 else "❌"
+    else:
+        content_icon = "⚪"  # Not run
+    comment_lines.append(f"**Looker Content Validation:** {content_icon}")
+    
+    comment_lines.append("")
     
     # Add data tests summary
     if data_tests_data and data_tests_data.get('summary'):
@@ -254,6 +383,15 @@ def generate_pr_comment():
         comment_lines.append("### Data Tests Summary")
         comment_lines.append(f"- Models tested: {test_summary.get('total_models', 0)} (passed: {test_summary.get('passed_models', 0)})")
         comment_lines.append(f"- LookML tests: {test_summary.get('total_tests', 0)} (passed: {test_summary.get('passed_tests', 0)})")
+        comment_lines.append("")
+    
+    # Add content validation summary
+    if content_validation_data and content_validation_data.get('summary'):
+        content_summary = content_validation_data['summary']
+        comment_lines.append("### Content Validation Summary")
+        comment_lines.append(f"- Total content validated: {sum(content_summary.get('total_content_validated', {}).values())}")
+        comment_lines.append(f"- BI Sandbox errors: {content_summary.get('bi_sandbox_errors', 0)}")
+        comment_lines.append(f"- All content errors: {content_summary.get('total_errors_all_content', 0)}")
         comment_lines.append("")
     
     # Add workflow link placeholder
@@ -278,90 +416,3 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Error generating reports: {e}")
         sys.exit(1)
-
-
-# Updated .github/scripts/check-results.py
-"""
-Check validation results and exit with appropriate code (Updated with Data Tests support)
-"""
-
-import json
-import os
-import sys
-
-def main():
-    """Check validation results and exit with error code if needed"""
-    
-    total_errors = 0
-    
-    # Check validation results
-    if os.path.exists('validation_results.json'):
-        try:
-            with open('validation_results.json', 'r') as f:
-                validation_data = json.load(f)
-            
-            validation_errors = len(validation_data.get('errors', []))
-            total_errors += validation_errors
-            
-            if validation_errors > 0:
-                print(f"Found {validation_errors} validation errors")
-            else:
-                print("No validation errors found")
-                
-        except Exception as e:
-            print(f"Could not read validation results: {e}")
-    else:
-        print("No validation results file found")
-    
-    # Check linting results
-    if os.path.exists('linting_results.json'):
-        try:
-            with open('linting_results.json', 'r') as f:
-                linting_data = json.load(f)
-            
-            linting_errors = len(linting_data.get('errors', []))
-            total_errors += linting_errors
-            
-            if linting_errors > 0:
-                print(f"Found {linting_errors} linting errors")
-            else:
-                print("No linting errors found")
-                
-        except Exception as e:
-            print(f"Could not read linting results: {e}")
-    else:
-        print("No linting results file found")
-    
-    # Check data tests results
-    if os.path.exists('data_tests_results.json'):
-        try:
-            with open('data_tests_results.json', 'r') as f:
-                data_tests_data = json.load(f)
-            
-            test_summary = data_tests_data.get('summary', {})
-            failed_models = test_summary.get('failed_models', 0)
-            failed_tests = test_summary.get('failed_tests', 0)
-            data_test_errors = failed_models + failed_tests
-            
-            total_errors += data_test_errors
-            
-            if data_test_errors > 0:
-                print(f"Found {failed_models} failed models and {failed_tests} failed data tests")
-            else:
-                print("All data tests passed")
-                
-        except Exception as e:
-            print(f"Could not read data tests results: {e}")
-    else:
-        print("No data tests results file found")
-    
-    # Final result
-    if total_errors > 0:
-        print(f"\nLookML validation failed with {total_errors} total errors")
-        sys.exit(1)
-    else:
-        print(f"\nAll LookML validations passed!")
-        sys.exit(0)
-
-if __name__ == '__main__':
-    main()
