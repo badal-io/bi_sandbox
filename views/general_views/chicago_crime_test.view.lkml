@@ -32,4 +32,5 @@ view: chicago_crime_test {
     type: string
     sql: ${TABLE}.primary_type ;;
   }
+
 }
