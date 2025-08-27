@@ -25,6 +25,7 @@ view: chicago_crime_test {
     sql: ${cnt} ;;
   }
 
+
   dimension: primary_type {
     label: "Primary TYPE"
     description: "Type which is primary"
