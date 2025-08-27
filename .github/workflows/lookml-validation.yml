@@ -97,12 +97,12 @@ jobs:
         python .github/scripts/lookml-linter.py --files="${{ steps.changed-files.outputs.all_changed_files }}"
       continue-on-error: false
     
-    # Step 3: SQL Query Validation
-    - name: Run SQL Query Validation
+    # Step 3: SQL Execution Testing (using correct two-step API workflow)
+    - name: Run SQL Execution Testing
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
-        echo "Running SQL query validation..."
-        python .github/scripts/sql-query-validator.py --files="${{ steps.changed-files.outputs.all_changed_files }}" --project-name="bi_sandbox"
+        echo "Running SQL execution tests using correct Looker API workflow..."
+        python .github/scripts/sql-execution-validator.py --files="${{ steps.changed-files.outputs.all_changed_files }}"
       continue-on-error: false  # Make this BLOCKING - SQL execution errors should fail the pipeline
     
     # Step 4: LookML Data Tests
