@@ -50,7 +50,7 @@ def main():
     else:
         print("ℹ️ No linting results file found")
     
-    # Check SQL validation results
+    # Check SQL validation results (fixed structure)
     if os.path.exists('sql_validation_results.json'):
         try:
             with open('sql_validation_results.json', 'r') as f:
@@ -58,22 +58,22 @@ def main():
             
             sql_errors = len(sql_validation_data.get('errors', []))
             
-            # For SQL validation, we might want to make it non-blocking for now
-            # Uncomment the next line to make SQL validation blocking:
-            # total_errors += sql_errors
+            # For SQL validation, we might want to make it blocking now since it tests actual execution
+            total_errors += sql_errors  # Make SQL execution errors blocking
             
             if sql_errors > 0:
-                print(f"⚠️ Found {sql_errors} SQL validation errors (non-blocking)")
+                print(f"❌ Found {sql_errors} SQL execution errors")
             else:
-                print("✅ No SQL validation errors found")
+                print("✅ No SQL execution errors found")
             
             # Print summary
             sql_summary = sql_validation_data.get('summary', {})
             if sql_summary:
-                print(f"📊 SQL Validation Summary:")
+                print(f"📊 SQL Execution Summary:")
                 print(f"   - Queries found: {sql_summary.get('total_queries_found', 0)}")
-                print(f"   - Queries with errors: {sql_summary.get('queries_with_errors', 0)}")
-                print(f"   - Queries with warnings: {sql_summary.get('queries_with_warnings', 0)}")
+                print(f"   - Queries tested: {sql_summary.get('total_queries_tested', 0)}")
+                print(f"   - Queries passed: {sql_summary.get('queries_passed', 0)}")
+                print(f"   - Queries with errors: {sql_summary.get('queries_with_execution_errors', 0)}")
                 
         except Exception as e:
             print(f"⚠️ Could not read SQL validation results: {e}")
