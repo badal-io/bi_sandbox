@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Updated .github/scripts/report-generator.py
 """
-Generate validation reports for GitHub Actions (Updated with Content Validation support)
+Generate validation reports for GitHub Actions (Updated with SQL Validation support)
 """
 
 import json
@@ -32,6 +32,15 @@ def generate_github_summary():
         except Exception as e:
             print(f"Warning: Could not read linting results: {e}")
     
+    # Read SQL validation results
+    sql_validation_data = {}
+    if os.path.exists('sql_validation_results.json'):
+        try:
+            with open('sql_validation_results.json', 'r') as f:
+                sql_validation_data = json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not read SQL validation results: {e}")
+    
     # Read data tests results
     data_tests_data = {}
     if os.path.exists('data_tests_results.json'):
@@ -55,6 +64,8 @@ def generate_github_summary():
     files_processed = set()
     files_processed.update(validation_data.get('files_processed', []))
     files_processed.update(linting_data.get('files_processed', []))
+    if sql_validation_data.get('summary'):
+        files_processed.update([q['query_info']['file_path'] for q in sql_validation_data.get('sql_validations', [])])
     
     if files_processed:
         for file in sorted(files_processed):
@@ -92,6 +103,36 @@ def generate_github_summary():
     
     if not linting_errors and not linting_warnings:
         summary_lines.append("#### ✅ No linting issues found!")
+    
+    summary_lines.append("")
+    
+    # SQL Validation results
+    summary_lines.append("### SQL Validation Results:")
+    if sql_validation_data and sql_validation_data.get('summary'):
+        sql_summary = sql_validation_data['summary']
+        
+        summary_lines.append(f"#### SQL Query Analysis:")
+        summary_lines.append(f"- Total SQL queries found: {sql_summary['total_queries_found']}")
+        summary_lines.append(f"- Queries validated: {sql_summary['total_queries_validated']}")
+        summary_lines.append(f"- Queries with errors: {sql_summary['queries_with_errors']}")
+        summary_lines.append(f"- Queries with warnings: {sql_summary['queries_with_warnings']}")
+        
+        if sql_summary['queries_with_errors'] > 0:
+            summary_lines.append("- **SQL Queries with Errors:**")
+            sql_errors = sql_validation_data.get('errors', [])
+            for error in sql_errors[:5]:  # Show first 5 errors
+                summary_lines.append(f"  - {error}")
+        
+        if sql_summary['queries_with_warnings'] > 0:
+            summary_lines.append("- **SQL Queries with Warnings:**")
+            sql_warnings = sql_validation_data.get('warnings', [])
+            for warning in sql_warnings[:3]:  # Show first 3 warnings
+                summary_lines.append(f"  - {warning}")
+        
+        if sql_summary['queries_with_errors'] == 0 and sql_summary['queries_with_warnings'] == 0:
+            summary_lines.append("#### ✅ All SQL queries validated successfully!")
+    else:
+        summary_lines.append("#### No SQL validation executed")
     
     summary_lines.append("")
     
@@ -198,6 +239,7 @@ def generate_pr_comment():
     # Read results files
     validation_data = {}
     linting_data = {}
+    sql_validation_data = {}
     data_tests_data = {}
     content_validation_data = {}
     
@@ -214,6 +256,13 @@ def generate_pr_comment():
                 linting_data = json.load(f)
     except Exception as e:
         comment_lines.append(f"Could not read linting results: {e}\n")
+    
+    try:
+        if os.path.exists('sql_validation_results.json'):
+            with open('sql_validation_results.json', 'r') as f:
+                sql_validation_data = json.load(f)
+    except Exception as e:
+        comment_lines.append(f"Could not read SQL validation results: {e}\n")
     
     try:
         if os.path.exists('data_tests_results.json'):
@@ -242,6 +291,14 @@ def generate_pr_comment():
     if linting_errors:
         comment_lines.append("### Linting Errors")
         for error in linting_errors:
+            comment_lines.append(f"- {error}")
+        comment_lines.append("")
+    
+    # Process SQL validation errors
+    sql_errors = sql_validation_data.get('errors', [])
+    if sql_errors:
+        comment_lines.append("### SQL Validation Errors")
+        for error in sql_errors:
             comment_lines.append(f"- {error}")
         comment_lines.append("")
     
@@ -317,7 +374,8 @@ def generate_pr_comment():
     # Process warnings
     validation_warnings = validation_data.get('warnings', [])
     linting_warnings = linting_data.get('warnings', [])
-    all_warnings = validation_warnings + linting_warnings
+    sql_warnings = sql_validation_data.get('warnings', [])
+    all_warnings = validation_warnings + linting_warnings + sql_warnings
     
     if data_tests_data and data_tests_data.get('summary', {}).get('warnings', 0) > 0:
         comment_lines.append("### Data Tests Warnings")
@@ -336,6 +394,7 @@ def generate_pr_comment():
     
     # Calculate total errors for success message
     total_errors = len(validation_data.get('errors', [])) + len(linting_data.get('errors', []))
+    total_errors += len(sql_validation_data.get('errors', []))
     if data_tests_data and data_tests_data.get('summary'):
         total_errors += data_tests_data['summary'].get('failed_models', 0) + data_tests_data['summary'].get('failed_tests', 0)
     if content_validation_data and content_validation_data.get('summary'):
@@ -359,6 +418,14 @@ def generate_pr_comment():
     linting_icon = "✅" if linting_errors == 0 else "❌"
     comment_lines.append(f"**LookML Linting:** {linting_icon}")
     
+    # SQL Validation status
+    sql_errors = len(sql_validation_data.get('errors', []))
+    if sql_validation_data and sql_validation_data.get('summary'):
+        sql_icon = "✅" if sql_errors == 0 else "❌"
+    else:
+        sql_icon = "⚪"  # Not run
+    comment_lines.append(f"**SQL Query Validation:** {sql_icon}")
+    
     # LookML Data Tests status
     if data_tests_data and data_tests_data.get('summary'):
         data_test_errors = data_tests_data['summary'].get('failed_models', 0) + data_tests_data['summary'].get('failed_tests', 0)
@@ -376,6 +443,16 @@ def generate_pr_comment():
     comment_lines.append(f"**Looker Content Validation:** {content_icon}")
     
     comment_lines.append("")
+    
+    # Add SQL validation summary
+    if sql_validation_data and sql_validation_data.get('summary'):
+        sql_summary = sql_validation_data['summary']
+        comment_lines.append("### SQL Validation Summary")
+        comment_lines.append(f"- SQL queries found: {sql_summary.get('total_queries_found', 0)}")
+        comment_lines.append(f"- Queries validated: {sql_summary.get('total_queries_validated', 0)}")
+        comment_lines.append(f"- Queries with errors: {sql_summary.get('queries_with_errors', 0)}")
+        comment_lines.append(f"- Queries with warnings: {sql_summary.get('queries_with_warnings', 0)}")
+        comment_lines.append("")
     
     # Add data tests summary
     if data_tests_data and data_tests_data.get('summary'):
