@@ -200,7 +200,7 @@ class SQLExecutionValidator:
             }
             
             if response.status_code == 200:
-                # Query executed successfully
+                # Status 200 - but check content for actual errors
                 try:
                     if result_format == 'json':
                         query_result = response.json()
@@ -230,11 +230,41 @@ class SQLExecutionValidator:
                         print(f"Query executed successfully in {result_format} format")
                 
                 except json.JSONDecodeError:
-                    result['raw_response'] = response.text
-                    print(f"Query executed successfully (non-JSON response)")
+                    # Non-JSON response on 200 - could still be an error
+                    response_text = response.text
+                    result['raw_response'] = response_text
+                    
+                    print(f"Non-JSON response received: {response_text[:200]}...")
+                    
+                    # Check if the response contains error indicators even with 200 status
+                    error_indicators = [
+                        'error', 'exception', 'syntax', 'failed', 'invalid',
+                        'bqsqlexception', 'query execution failed', 'parse error',
+                        'expected', 'unexpected', 'malformed'
+                    ]
+                    
+                    response_lower = response_text.lower()
+                    found_errors = [indicator for indicator in error_indicators if indicator in response_lower]
+                    
+                    if found_errors:
+                        # This is actually an error disguised as success
+                        result['success'] = False
+                        
+                        # Extract the actual error message
+                        if 'syntax error' in response_lower:
+                            result['errors'].append(f"Syntax Error: {response_text}")
+                            print(f"Syntax Error detected: {response_text[:200]}")
+                        elif 'query execution failed' in response_lower:
+                            result['errors'].append(f"Execution Error: {response_text}")
+                            print(f"Execution Error detected: {response_text[:200]}")
+                        else:
+                            result['errors'].append(f"SQL Error: {response_text}")
+                            print(f"SQL Error detected: {response_text[:200]}")
+                    else:
+                        print(f"Query executed successfully (non-JSON response)")
             
             else:
-                # Handle error response
+                # Non-200 status codes
                 try:
                     error_data = response.json()
                     error_message = error_data.get('message', 'Unknown error')
@@ -257,6 +287,7 @@ class SQLExecutionValidator:
                     result['error_details'] = error_data
                     
                 except json.JSONDecodeError:
+                    # Non-JSON error response
                     error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
                     result['errors'].append(error_msg)
                     print(f"{error_msg}")
