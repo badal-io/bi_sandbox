@@ -174,7 +174,7 @@ jobs:
           // Look for existing LookML validation comment
           const botComment = comments.find(comment => 
             comment.user.login === 'github-actions[bot]' && 
-            comment.body.includes('LookML Validation Results')
+            comment.body.includes('EK Custom LookML Validation Results')
           );
           
           if (botComment) {
