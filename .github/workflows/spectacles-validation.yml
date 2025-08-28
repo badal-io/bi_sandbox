@@ -1,0 +1,188 @@
+name: Spectacles LookML Validation
+
+on:
+  pull_request:
+    branches: [ main, master, develop ]
+    paths: 
+      - '**/*.lookml'
+      - '**/*.lkml'
+      - '**/*.model'
+      - '**/*.view'
+      - '**/*.explore'
+      - '**/*.dashboard'
+      - 'manifest.lkml'
+  push:
+    branches: [ main, master ]
+    paths: 
+      - '**/*.lookml'
+      - '**/*.lkml'
+      - '**/*.model'
+      - '**/*.view'
+      - '**/*.explore'
+      - '**/*.dashboard'
+      - 'manifest.lkml'
+
+jobs:
+  spectacles-validation:
+    runs-on: ubuntu-latest
+    name: Validate LookML with Spectacles
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+    
+    - name: Install Spectacles
+      run: |
+        python -m pip install --upgrade pip
+        pip install spectacles
+    
+    - name: Create Spectacles config
+      run: |
+        cat > spectacles-config.yaml << EOF
+        base_url: ${{ secrets.LOOKER_BASE_URL }}
+        client_id: ${{ secrets.LOOKER_CLIENT_ID }}
+        client_secret: ${{ secrets.LOOKER_CLIENT_SECRET }}
+        EOF
+      env:
+        LOOKER_BASE_URL: ${{ secrets.LOOKER_BASE_URL }}
+        LOOKER_CLIENT_ID: ${{ secrets.LOOKER_CLIENT_ID }}
+        LOOKER_CLIENT_SECRET: ${{ secrets.LOOKER_CLIENT_SECRET }}
+    
+    - name: Get branch name
+      id: branch-name
+      run: |
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+        else
+          echo "BRANCH_NAME=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        fi
+    
+    # Step 1: LookML Validation
+    - name: Run LookML Validation
+      id: lookml-validation
+      run: |
+        echo "Running LookML validation..."
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          spectacles lookml \
+            --config-file spectacles-config.yaml \
+            --project bi_sandbox \
+            --branch ${{ steps.branch-name.outputs.BRANCH_NAME }} \
+            --severity warning
+        else
+          spectacles lookml \
+            --config-file spectacles-config.yaml \
+            --project bi_sandbox \
+            --severity warning
+        fi
+      continue-on-error: true
+    
+    # Step 2: SQL Validation
+    - name: Run SQL Validation
+      id: sql-validation
+      run: |
+        echo "Running SQL validation..."
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          spectacles sql \
+            --config-file spectacles-config.yaml \
+            --project bi_sandbox \
+            --branch ${{ steps.branch-name.outputs.BRANCH_NAME }}
+        else
+          spectacles sql \
+            --config-file spectacles-config.yaml \
+            --project bi_sandbox
+        fi
+      continue-on-error: true
+    
+    # Step 3: Content Validation
+    - name: Run Content Validation
+      id: content-validation
+      run: |
+        echo "Running content validation..."
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          spectacles content \
+            --config-file spectacles-config.yaml \
+            --project bi_sandbox \
+            --branch ${{ steps.branch-name.outputs.BRANCH_NAME }} \
+            --incremental \
+            --exclude-personal
+        else
+          spectacles content \
+            --config-file spectacles-config.yaml \
+            --project bi_sandbox \
+            --exclude-personal
+        fi
+      continue-on-error: true
+    
+    # Step 4: Data Tests (Assert) Validation
+    - name: Run Data Tests Validation
+      id: assert-validation
+      run: |
+        echo "Running data tests validation..."
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          spectacles assert \
+            --config-file spectacles-config.yaml \
+            --project bi_sandbox \
+            --branch ${{ steps.branch-name.outputs.BRANCH_NAME }}
+        else
+          spectacles assert \
+            --config-file spectacles-config.yaml \
+            --project bi_sandbox
+        fi
+      continue-on-error: true
+    
+    # Step 5: Generate Summary
+    - name: Generate Validation Summary
+      if: always()
+      run: |
+        echo "## Spectacles Validation Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Validation Status:" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ steps.lookml-validation.outcome }}" == "success" ]]; then
+          echo "- ✅ **LookML Validation**: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ❌ **LookML Validation**: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ steps.sql-validation.outcome }}" == "success" ]]; then
+          echo "- ✅ **SQL Validation**: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ❌ **SQL Validation**: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ steps.content-validation.outcome }}" == "success" ]]; then
+          echo "- ✅ **Content Validation**: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ❌ **Content Validation**: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ steps.assert-validation.outcome }}" == "success" ]]; then
+          echo "- ✅ **Data Tests**: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ❌ **Data Tests**: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch tested**: ${{ steps.branch-name.outputs.BRANCH_NAME }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Project**: bi_sandbox" >> $GITHUB_STEP_SUMMARY
+    
+    # Step 6: Check if any validation failed
+    - name: Check Validation Results
+      if: always()
+      run: |
+        if [[ "${{ steps.lookml-validation.outcome }}" != "success" ]] || \
+           [[ "${{ steps.sql-validation.outcome }}" != "success" ]] || \
+           [[ "${{ steps.content-validation.outcome }}" != "success" ]] || \
+           [[ "${{ steps.assert-validation.outcome }}" != "success" ]]; then
+          echo "❌ One or more Spectacles validations failed"
+          exit 1
+        else
+          echo "✅ All Spectacles validations passed"
+        fi
