@@ -470,9 +470,9 @@ def generate_pr_comment():
     if content_validation_data and content_validation_data.get('summary'):
         content_summary = content_validation_data['summary']
         comment_lines.append("### Content Validation Summary")
-        comment_lines.append(f"- Total content validated: {sum(content_summary.get('total_content_validated', {}).values())}")
+        #comment_lines.append(f"- Total content validated: {sum(content_summary.get('total_content_validated', {}).values())}")
         comment_lines.append(f"- BI Sandbox errors: {content_summary.get('bi_sandbox_errors', 0)}")
-        comment_lines.append(f"- All content errors: {content_summary.get('total_errors_all_content', 0)}")
+        #comment_lines.append(f"- All content errors: {content_summary.get('total_errors_all_content', 0)}")
         comment_lines.append("")
     
     # Add workflow link placeholder
