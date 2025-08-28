@@ -12,7 +12,7 @@ def generate_github_summary():
     """Generate GitHub Actions step summary"""
     
     summary_lines = []
-    summary_lines.append("## LookML Validation Report\n")
+    summary_lines.append("## EK Custom LookML Validation Report\n")
     
     # Read validation results
     validation_data = {}
