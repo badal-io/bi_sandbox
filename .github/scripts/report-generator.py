@@ -185,9 +185,9 @@ def generate_github_summary():
         
         total_content = sum(content_summary.get('total_content_validated', {}).values())
         summary_lines.append(f"#### Content Statistics:")
-        summary_lines.append(f"- Total content validated: {total_content}")
+        #summary_lines.append(f"- Total content validated: {total_content}")
         summary_lines.append(f"- BI Sandbox errors: {content_summary.get('bi_sandbox_errors', 0)}")
-        summary_lines.append(f"- All content errors: {content_summary.get('total_errors_all_content', 0)}")
+        #summary_lines.append(f"- All content errors: {content_summary.get('total_errors_all_content', 0)}")
         
         if content_summary.get('bi_sandbox_errors', 0) > 0:
             summary_lines.append("- **BI Sandbox Content Issues:**")
