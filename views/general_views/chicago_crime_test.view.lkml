@@ -17,14 +17,12 @@ view: chicago_crime_test {
     sql: ${TABLE}.cnt ;;
   }
 
-
   measure: total_count {
     label: "Total Count"
     description: "Number of rows"
     type: sum
     sql: ${cnt} ;;
   }
-
 
   dimension: primary_type {
     label: "Primary TYPE"
