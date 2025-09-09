@@ -3,6 +3,7 @@ view: case21_dep_b_data {
 
   dimension: category {
     label: "Category"
+    description: "description"
     type: string
     sql: ${TABLE}.category ;;
   }
