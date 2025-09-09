@@ -7,6 +7,7 @@ view: case21_dep_b_data {
     type: string
     sql: ${TABLE}.category ;;
   }
+
   dimension_group: date {
     label: "Date"
     description: "description"
@@ -16,18 +17,21 @@ view: case21_dep_b_data {
     datatype: date
     sql: ${TABLE}.date ;;
   }
+
   dimension: name {
     label: "Name"
     description: "description"
     type: string
     sql: ${TABLE}.name ;;
   }
+
   dimension: number {
     label: "Number"
     description: "description"
     type: number
     sql: ${TABLE}.number ;;
   }
+
   measure: count {
     label: "Count"
     description: "description"
