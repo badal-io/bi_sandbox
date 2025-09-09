@@ -18,12 +18,14 @@ view: case21_dep_a_data {
     sql: ${TABLE}.date ;;
   }
 
+
   dimension: flag {
     label: "Flag"
     description: "description"
     type: number
     sql: ${TABLE}.flag ;;
   }
+
 
   dimension: number {
     label: "Number"
