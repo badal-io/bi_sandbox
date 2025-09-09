@@ -32,7 +32,6 @@ view: case21_dep_a_data {
     sql: ${TABLE}.number ;;
   }
 
-
   measure: total_number {
     label: "Total Number"
     description: "description"
