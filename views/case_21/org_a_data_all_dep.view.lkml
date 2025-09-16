@@ -7,6 +7,7 @@ view: org_a_data_all_dep {
     type: string
     sql: ${TABLE}.department ;;
   }
+
   dimension: department_id {
     label: "Department id"
     description: "description"
