@@ -25,7 +25,6 @@ view: case21_dep_a_data {
     sql: ${TABLE}.flag ;;
   }
 
-
   dimension: number {
     label: "Number"
     description: "description"
