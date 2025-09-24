@@ -17,6 +17,14 @@ explore: v_netflix_titles_enriched {
   label: "Netflix Titles"
 }
 
+explore: list_of_ids {
+  label: "List of IDs"
+}
+
 explore: view_1 {
   label: "Explore with an example of Linking"
+}
+
+explore: html_view {
+  label: "Explore with an example of HTML use"
 }
