@@ -20,3 +20,7 @@ explore: v_netflix_titles_enriched {
 explore: view_1 {
   label: "Explore with an example of Linking"
 }
+
+explore: html_view {
+  label: "Explore with an example of HTML use"
+}
