@@ -19,3 +19,8 @@ include: "/demo_lookml.dashboard.lookml"   # include a LookML dashboard called m
 #     sql_on: ${users.id} = ${orders.user_id} ;;
 #   }
 # }
+
+datagroup: month_end_datagroup {
+  sql_trigger: SELECT EXTRACT( MONTH FROM CURRENT_DATE());;
+  description: "Triggered on the last day of each month"
+}
