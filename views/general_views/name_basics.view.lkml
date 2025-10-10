@@ -1,5 +1,4 @@
 view: name_basics {
-  sql_table_name: `prj-s-dlp-dq-sandbox-0b3c.dbt_ahussein.name_basics` ;;
 
   dimension: birth_year {
     type: number
@@ -34,5 +33,6 @@ view: name_basics {
   measure: count {
     type: count
     drill_fields: [primary_name]
+    filters: [primary_profession:"executive"]
   }
 }
