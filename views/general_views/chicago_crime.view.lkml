@@ -5,6 +5,7 @@ view: chicago_crime {
              from `bigquery-public-data.chicago_crime.crime`
              where date>='2025-01-01'
             ;;
+    datagroup_trigger: month_end_datagroup
   }
 
 
