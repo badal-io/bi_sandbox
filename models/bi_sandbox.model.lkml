@@ -4,6 +4,7 @@ include: "/explores/case_21.explore"
 include: "/explores/general_views.explore"
 include: "/data_tests/*"
 include: "/demo_lookml.dashboard.lookml"   # include a LookML dashboard called my_dashboard
+include: "/dashboards/*.dashboard.lookml"   # include a LookML dashboard called my_dashboard
 
 # # Select the views that should be a part of this model,
 # # and define the joins that connect them together.
