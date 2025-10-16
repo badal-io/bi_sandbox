@@ -4,49 +4,56 @@ view: evg_incremental_summary {
   }
 
   measure: count {
+    label: "COUNT"
     type: count
   }
 
   dimension: label {
+    label: "LABEL"
     type: string
     sql: ${TABLE}.label ;;
   }
 
   dimension_group: dbt_load_timestamp {
+    label: "DBT LOAD TIMESTAMP"
     type: time
     sql: ${TABLE}.dbt_load_timestamp ;;
   }
 
   dimension: id_count {
+    label: "ID COUNT"
     type: number
     sql: ${TABLE}.id_count ;;
   }
 
   dimension: number_categories {
+    label: "NUMBER CATEGORIES"
     type: number
     sql: ${TABLE}.number_categories ;;
   }
 
   dimension: total_cnt {
+    label: "TOTAL CNT"
     hidden: yes
     type: number
     sql: ${TABLE}.total_cnt ;;
   }
 
   dimension: total_value {
+    label: "TOTAL VALUE"
     hidden: yes
     type: number
     sql: ${TABLE}.total_value ;;
   }
 
   dimension: flag_color {
-    label: "Flag. Color"
+    label: "FLAG COLOR"
     type: string
     sql: case when ${id_count}<100 then "blue" else "red" end ;;
   }
 
   dimension: button_taxi {
-    label: "Button Text to Taxi Trips"
+    label: "BUTTON TAXI"
     type: string
     sql: "Go to Taxi Trips" ;;
     link: {
@@ -56,7 +63,7 @@ view: evg_incremental_summary {
   }
 
   dimension: button_taxi_image {
-    label: "Button Image to Taxi Trips"
+    label: "BUTTON TAXI IMAGE"
     type: string
     sql: "Go to Taxi Trips" ;;
     link: {
@@ -70,14 +77,14 @@ view: evg_incremental_summary {
 
   measure: reporting_total_cnt {
     type: sum
-    label: "Total Cnt"
+    label: "REPORTING TOTAL CNT"
     value_format: "#,##0"
     sql: ${total_cnt} ;;
   }
 
   measure: reporting_total_value {
     type: sum
-    label: "Total Value"
+    label: "REPORTING TOTAL VALUE"
     value_format: "#,##0"
     sql: ${total_value} ;;
   }

@@ -1,4 +1,5 @@
 include: "/views/general_views/**/*.view"
+include: "/views/lookml_best_practices/**/*.view"
 
 explore: evg_incremental_summary {
   label: "Incremental Summary"
@@ -23,8 +24,6 @@ explore: netflix_dynamic_measures {
 explore: netflix_dynamic_movie_tvshow {
   label: "Dynamic Netflix User Attributes "
 }
-
-
 explore: biglake{
   label: "Big Lake Test"
 }
@@ -67,9 +66,7 @@ explore: main_table {
     type: left_outer
     relationship: many_to_one
   }
-  }
-
-
+}
 
 # --- Base Explore ---
 # This Explore is based on our extended movie view.
@@ -85,14 +82,11 @@ explore: movies_analysis {
   label: "In-Depth Movie Analysis" # Overrides the default label 'Movies Base'
 }
 
- #--- Base Explore (Not visible to users) ---
+#--- Base Explore (Not visible to users) ---
 explore: netflix_base_explore {
-  view_name: tv_shows_extended  # CRITICAL FIX: The base explore must explicitly use 'view_name'.
+  view_name: tv_shows_extended
   extension: required
   label: "Base Content"
-
-  # This join will be inherited by any Explore that extends this one.
-  # It uses the 'show_id' field which exists in both tables.
   join: movies_extended {
     type: left_outer
     sql_on: ${tv_shows_extended.show_id} = ${movies_extended.show_id} ;;
@@ -103,83 +97,18 @@ explore: netflix_base_explore {
 # --- Extending Explore (Visible to users) ---
 explore: netflix_extended_explore {
   extends: [netflix_base_explore]
-  from: tv_shows_extended # The extending explore must still declare its base view.
+  from: tv_shows_extended
   label: "Netflix Content Extended"
-
-  # This Explore automatically includes the 'movies_extended' join from the base.
-  # The 'label' above overrides the 'Base Content' label.
 }
 
+explore: list_of_ids {
+  label: "List of IDs"
+}
 
+explore: view_1 {
+  label: "Explore with an example of Linking"
+}
 
- #--------------Conditionally Filter Example-----------------------------------------------
-#explore: main_table {
-#label: "Product and Category Analysis"
-#description: "This is the main_table explore that I have joined the category_table view to"
-
-# Applies this filter to every query...
-#conditionally_filter: {
-#  filters: [product_table.name: "B"]
-#  # ...UNLESS the user filters on the 'id' field
-#  unless: [main_table.id]
-#}
-#
-#join: category_table {
-#  sql_on: ${main_table.category_id} = ${category_table.id} ;;
-#  relationship: many_to_one
-#  type: left_outer
-#  fields: [category_table.name]
-#}
-#
-#join: product_table {
-#  sql_on: ${main_table.product_id} = ${product_table.id} ;;
-#  type: left_outer
-#  relationship: many_to_one
-#}
-#}
-
-#------------------SQL Always Having Example-----------------------------------------
-
-#explore: main_table {
-#label: "Product and Category Analysis"
-#description: "This is the main_table explore that I have joined the category_table view to"
-
-# Applies this filter after aggregation
-#sql_always_having: ${total_sales} > 100 ;;
-
-#join: category_table {
-#  sql_on: ${main_table.category_id} = ${category_table.id} ;;
-#  relationship: many_to_one
-#  type: left_outer
-#  fields: [category_table.name]
-#}
-
-#join: product_table {
-#  sql_on: ${main_table.product_id} = ${product_table.id} ;;
-#  type: left_outer
-#  relationship: many_to_one
-#}
-#}
-# make sure to create a measure first , as sql always having must be applied on measures like type sum value
-
-#-------------------------SQL Alway Where Example------------------------------
-#explore: main_table {
-#label: "Product and Category Analysis"
-#description: "This is the main_table explore that I have joined the category_table view to"
-
-# Applies this filter to every row before aggregation
-#sql_always_where: ${main_table.color} = 'red' ;;
-
-#join: category_table {
-#  sql_on: ${main_table.category_id} = ${category_table.id} ;;
-#  relationship: many_to_one
-#  type: left_outer
-#  fields: [category_table.name]
-#}
-
-#join: product_table {
-#  sql_on: ${main_table.product_id} = ${product_table.id} ;;
-#  type: left_outer
-#  relationship: many_to_one
-#}
-#}
+explore: html_view {
+  label: "Explore with an example of HTML use"
+}

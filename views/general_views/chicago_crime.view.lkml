@@ -1,10 +1,13 @@
+
 view: chicago_crime {
+
   derived_table: {
     sql: select *
-             from `bigquery-public-data.chicago_crime.crime`
-             -- where date>='2025-01-01'
-            -- where {% condition filter_test %} primary_type {% endcondition %}
-            ;;
+          from `bigquery-public-data.chicago_crime.crime`
+         -- where date>='2025-01-01'
+         -- where {% condition filter_test %} primary_type {% endcondition %}
+          ;;
+    datagroup_trigger: month_end_datagroup
   }
 
   filter: filter_test {
@@ -83,11 +86,13 @@ view: chicago_crime {
 
   dimension: unique_key {
     type: number
+    label: "Unique Key"
     sql: ${TABLE}.unique_key ;;
   }
 
   dimension: case_number {
     type: string
+    label: "Case Number"
     sql: ${TABLE}.case_number ;;
   }
 
@@ -96,6 +101,7 @@ view: chicago_crime {
     sql: ${TABLE}.date ;;
     # timeframes: [date, day_of_month, day_of_week, day_of_year] # When timeframes parameter is not specified, all timeframes are included in the dimension group.
   }
+
   dimension_group: reporting_date {
     type: time
     group_label: "The Ultimate Reporting Date"
@@ -110,81 +116,95 @@ view: chicago_crime {
     sql: ${TABLE}.date ;;
   }
 
-    dimension: reporting_month_year {
-      group_label: "Reporting Date"
-      label: "Reporting Month + Year"
-      type: string
-      sql: DATE_TRUNC(${reporting_date}, MONTH) ;;
-      html: {{ rendered_value | date: "%B %Y" }};;
-    }
+  dimension: reporting_month_year {
+    group_label: "Reporting Date"
+    label: "Reporting Month + Year"
+    type: string
+    sql: DATE_TRUNC(${reporting_date}, MONTH) ;;
+    html: {{ rendered_value | date: "%B %Y" }};;
+  }
 
   dimension: block {
     type: string
+    label: "Block"
     sql: ${TABLE}.block ;;
   }
 
   dimension: iucr {
     type: string
+    label: "Iucr"
     sql: ${TABLE}.iucr ;;
   }
 
   dimension: primary_type {
     type: string
+    label: "Primary Type"
     sql: ${TABLE}.primary_type ;;
   }
 
   dimension: description {
     type: string
+    label: "Description"
     sql: ${TABLE}.description ;;
   }
 
   dimension: location_description {
     type: string
+    label: "Location Description"
     sql: ${TABLE}.location_description ;;
   }
 
   dimension: arrest {
     type: yesno
+    label: "Arrest"
     sql: ${TABLE}.arrest ;;
   }
 
   dimension: domestic {
     type: yesno
+    label: "Domestic"
     sql: ${TABLE}.domestic ;;
   }
 
   dimension: beat {
     type: number
+    label: "Beat"
     sql: ${TABLE}.beat ;;
   }
 
   dimension: district {
     type: number
+    label: "District"
     sql: ${TABLE}.district ;;
   }
 
   dimension: ward {
     type: number
+    label: "Ward"
     sql: ${TABLE}.ward ;;
   }
 
   dimension: community_area {
     type: number
+    label: "Community Area"
     sql: ${TABLE}.community_area ;;
   }
 
   dimension: fbi_code {
     type: string
+    label: "Fbi Code"
     sql: ${TABLE}.fbi_code ;;
   }
 
   dimension: x_coordinate {
     type: number
+    label: "X Coordinate"
     sql: ${TABLE}.x_coordinate ;;
   }
 
   dimension: y_coordinate {
     type: number
+    label: "Y Coordinate"
     sql: ${TABLE}.y_coordinate ;;
   }
 
@@ -212,5 +232,6 @@ view: chicago_crime {
     type: string
     sql: ${TABLE}.location ;;
   }
+
 
 }

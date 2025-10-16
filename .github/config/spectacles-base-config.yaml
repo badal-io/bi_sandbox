@@ -1,0 +1,36 @@
+# .github/config/spectacles-base-config.yaml
+# Non-sensitive Spectacles configuration
+
+project: bi_sandbox
+
+# SQL Validator - include all explores in the bi_sandbox project
+explores:
+  include:
+    - bi_sandbox/*  # Test all explores in the bi_sandbox project
+  # exclude:
+  #   - bi_sandbox/broken_explore  # Uncomment to exclude specific explores if needed
+
+# Content Validator settings
+content:
+  exclude_personal: true
+  incremental: true  # Only show errors introduced by branch changes
+  
+# LookML Validator settings  
+lookml:
+  severity: warning  # Fail on warnings and errors, but not info
+
+# Data Tests (Assert) settings
+assert:
+  timeout: 300
+  concurrency: 2  # Don't overwhelm your database
+
+# Output settings
+output:
+  format: json
+  verbose: true
+
+# Connection settings
+options:
+  verify_ssl: true
+  timeout: 120
+  retry_attempts: 3
