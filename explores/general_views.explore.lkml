@@ -28,11 +28,6 @@ explore: biglake{
   label: "Big Lake Test"
 }
 
-explore: name_basics{
-  label: "Name Basics"
-  group_label: "Test Explores"
-}
-
 explore: table_1 {
   label: "Main + Category"
   group_label: "Test Explores"
