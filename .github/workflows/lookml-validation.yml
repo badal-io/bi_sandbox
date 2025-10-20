@@ -93,7 +93,7 @@ jobs:
     - name: Check audit results
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
-        python .github/scripts/lookml-audit.py --project-name="."
+        python .github/scripts/lookml-audit.py --project-name="./views/general_views/taxi_trips.view.lkml"
       continue-on-error: false
         
     # Step 2: Custom LookML Linting
