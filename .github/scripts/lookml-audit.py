@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Test: Find LookML Views Without Primary Keys Defined
-Usage: python find_views_without_pk.py --files views/general_views/taxi_trips.view.lkml
+Find LookML Views Without Primary Keys Defined
+
+Usage:
+  python lookml-audit.py --project-name="."
+  # or: --project-name path/to/repo/root
 """
 
 import re
@@ -10,54 +13,59 @@ import os
 import glob
 import sys
 
-def find_views_without_primary_keys(files):
-    missing_pk = []
-    view_pattern = r'view:\s*(\w+)\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}'
-    pk_pattern = r'primary_key:\s*yes'
+VIEW_BLOCK_RE = re.compile(r'view:\s*(\w+)\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}', re.DOTALL)
+PRIMARY_KEY_RE = re.compile(r'primary_key:\s*yes\b')
 
+def collect_lookml_files(project_root: str) -> list[str]:
+    patterns = [
+        os.path.join(project_root, "views", "**", "*.view.lkml"),
+        os.path.join(project_root, "views", "**", "*.view"),
+    ]
+    files: list[str] = []
+    for p in patterns:
+        files.extend(glob.glob(p, recursive=True))
+    # de-dupe & sort for stable output
+    return sorted(set(files))
+
+def find_views_without_primary_keys(files: list[str]) -> list[tuple[str, str]]:
+    missing_pk: list[tuple[str, str]] = []
     for file_path in files:
         if not os.path.exists(file_path):
             print(f"File not found: {file_path}")
             continue
-
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
-
-        for match in re.finditer(view_pattern, content, re.DOTALL):
+        for match in VIEW_BLOCK_RE.finditer(content):
             view_name = match.group(1)
             view_body = match.group(2)
-            if not re.search(pk_pattern, view_body):
+            if not PRIMARY_KEY_RE.search(view_body):
                 missing_pk.append((file_path, view_name))
     return missing_pk
 
 def main():
-    parser = argparse.ArgumentParser(description='Find LookML views without primary keys in a project')
-    parser.add_argument('--project-name', required=True, help='Looker project name to audit')
+    parser = argparse.ArgumentParser(description="Find LookML views without primary keys in a project")
+    parser.add_argument("--project-name", required=True, help="Path to the Looker project root (use '.' for repo root)")
     args = parser.parse_args()
 
-    project_name = args.project_name
+    # If a folder named exactly as project-name doesn't exist, assume current dir
+    project_root = args.project_name if os.path.isdir(args.project_name) else "."
 
-    # Assume project name corresponds to a directory structure,
-    # e.g. project "bi_sandbox" has views in "bi_sandbox/views/*.lkml"
-    base_path = os.path.join(project_name, 'views')
-    pattern = os.path.join(base_path, '**', '*.view.lkml')
-
-    files_to_audit = glob.glob(pattern, recursive=True)
+    files_to_audit = collect_lookml_files(project_root)
     if not files_to_audit:
-        print(f"No LookML files found for project '{project_name}' at {pattern}")
+        print(f"No LookML files found under {project_root}/views (looked for *.view.lkml and *.view)")
         sys.exit(1)
 
-    print(f"Auditing {len(files_to_audit)} LookML files in project '{project_name}'...")
+    print(f"Auditing {len(files_to_audit)} LookML files in project root '{project_root}'...")
     missing_pks = find_views_without_primary_keys(files_to_audit)
 
     if missing_pks:
-        print(f"Views missing primary keys:")
+        print("Views missing primary_key:")
         for file_path, view_name in missing_pks:
-            print(f"  {file_path}: '{view_name}' has no primary_key defined")
+            print(f"  {file_path}: '{view_name}' has no primary_key: yes")
         sys.exit(1)
     else:
         print("All views have primary_key defined.")
         sys.exit(0)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
