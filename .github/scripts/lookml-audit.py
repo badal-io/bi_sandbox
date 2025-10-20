@@ -3,7 +3,7 @@
 Test: Find LookML Views Without Primary Keys Defined
 
 Usage:
-    python find_views_without_pk.py --files YOUR_LOOKML_FILES/*.view.lkml
+    python find_views_without_pk.py --files views/general_views/taxi_trips.view.lkml
 """
 
 import re
