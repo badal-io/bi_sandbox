@@ -94,6 +94,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         python .github/scripts/lookml-audit.py --files views/general_views/taxi_trips.view.lkml
+      continue-on-error: false
         
     # Step 2: Custom LookML Linting
     - name: Run LookML Linting
