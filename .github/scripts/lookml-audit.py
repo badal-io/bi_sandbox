@@ -40,7 +40,7 @@ def main():
     # Assume project name corresponds to a directory structure,
     # e.g. project "bi_sandbox" has views in "bi_sandbox/views/*.lkml"
     base_path = os.path.join(project_name, 'views')
-    pattern = os.path.join(base_path, '**', '*.lkml')
+    pattern = os.path.join(base_path, '**', '*.view')
 
     files_to_audit = glob.glob(pattern, recursive=True)
     if not files_to_audit:
