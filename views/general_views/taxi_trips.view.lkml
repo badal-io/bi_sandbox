@@ -24,6 +24,4 @@ view: taxi_trips {
     label: "Count"
   }
 
-
-
 }
