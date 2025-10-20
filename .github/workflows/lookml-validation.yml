@@ -88,7 +88,13 @@ jobs:
         echo "Running LookML syntax validation..."
         python .github/scripts/looker-validator.py --project-name="bi_sandbox"
       continue-on-error: false
-    
+
+    # Step 9: Check audit tests - move here just to check
+    - name: Check audit results
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        python .github/scripts/lookml-audit.py
+        
     # Step 2: Custom LookML Linting
     - name: Run LookML Linting
       if: steps.changed-files.outputs.any_changed == 'true'
@@ -148,12 +154,6 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         python .github/scripts/check-results.py
-
-    # Step 9: Check audit tests
-    - name: Check audit results
-      if: steps.changed-files.outputs.any_changed == 'true'
-      run: |
-        python .github/scripts/lookml-audit.py
     
     # Step 10: Comment PR with results
     - name: Comment PR with results
