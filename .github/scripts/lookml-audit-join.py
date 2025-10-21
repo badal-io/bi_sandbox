@@ -7,9 +7,7 @@ import glob
 def test_only_many_to_one_joins(files):
     """
     Checks that all join relationships in explores are 'many_to_one'.
-    Returns a list of (file, explore_name, join_name, found_relationship) for violations.
-    
-    NOTE: Temporary print statements are included for debugging regex issues.
+    Flags 'one_to_one', 'one_to_many', 'many_to_many', and MISSING as violations.
     """
     # 1. INITIALIZE PATTERNS AND VIOLATIONS LIST
     
@@ -35,31 +33,31 @@ def test_only_many_to_one_joins(files):
                 explore_name = explore_match.group(1)
                 explore_body = explore_match.group(2)
                 
-                # DEBUG: Check if explore was captured
-                print(f"DEBUG: Found Explore '{explore_name}' in {file_path}") 
+                # --- START DEBUGGING PRINTS (Remove after verification) ---
+                # print(f"DEBUG: Found Explore '{explore_name}' in {file_path}") 
                 
                 for join_match in re.finditer(pattern_join, explore_body, re.DOTALL):
                     join_name = join_match.group(1)
                     join_body = join_match.group(2)
                     
-                    # DEBUG: Check if join was captured
-                    print(f"DEBUG:   Found Join '{join_name}'. Snippet: {join_body.strip()[:60]}...")
+                    # print(f"DEBUG:   Found Join '{join_name}'. Snippet: {join_body.strip()[:60]}...")
                     
                     # Use re.MULTILINE for the anchored relationship pattern
                     rel_match = re.search(relationship_pattern, join_body, re.MULTILINE) 
                     
                     if rel_match:
                         relationship_type = rel_match.group(1)
-                        # DEBUG: Report the found relationship type
-                        print(f"DEBUG:     Relationship found: {relationship_type}") 
+                        # print(f"DEBUG:     Relationship found: {relationship_type}") 
                         
+                        # --- 🔑 CORE FIX: Check for NON-many_to_one relationships ---
                         if relationship_type != "many_to_one":
                             violations.append((file_path, explore_name, join_name, relationship_type))
+                        
                     else:
-                        # DEBUG: Relationship was not found by the regex
-                        print(f"DEBUG:     Relationship: MISSING/FAILED TO MATCH")
+                        # Flag missing relationship as a violation
+                        # print(f"DEBUG:     Relationship: MISSING/FAILED TO MATCH")
                         violations.append((file_path, explore_name, join_name, "MISSING"))
-
+        
         except FileNotFoundError:
             print(f"Warning: File not found at {file_path}. Skipping.")
             continue
@@ -90,7 +88,8 @@ def main():
 
     # 3. REPORTING AND EXIT CODE
     if violations:
-        print("\n❌ LookML Join Audit Failed: The following joins are NOT many_to_one or are missing a relationship:\n")
+        # Changed messaging to clearly state what kind of joins are violations
+        print("\n❌ LookML Join Audit Failed: Non-'many_to_one' relationships found or missing declaration:\n")
         
         for file_path, explore, join, found in violations:
             message = f"In Explore '{explore}', Join '{join}' has relationship: {found}"
