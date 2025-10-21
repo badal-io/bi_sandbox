@@ -97,6 +97,14 @@ explore: netflix_extended_explore {
 }
 
 explore: list_of_ids {
+  # add for test purpose only
+  join: list_of_ids_2 {
+    from: list_of_ids
+    type: left_outer
+    sql_on: ${list_of_ids.id} = ${list_of_ids_2.id} ;;
+    relationship: many_to_many
+  }
+
   label: "List of IDs"
 }
 
