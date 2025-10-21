@@ -49,15 +49,9 @@ def test_only_many_to_one_joins(files):
                 else:
                     violations.append((file_path, explore_name, join_name, "MISSING"))
     return violations
-    # --- End of placeholder logic for function body ---
-
----
 
 ## The Main Execution Block
 
-You must define a `main()` function to handle the command-line argument and file discovery before running your audit logic.
-
-```python
 def main():
     # 1. FILE DISCOVERY & ARGUMENT HANDLING
     # This is a simplified way to find all model files for demonstration.
