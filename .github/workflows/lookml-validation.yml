@@ -104,7 +104,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML audit explores..."
-          if ! python .github/scripts/lookml-audit-explore.py --files "$(find . -name '*.view.lkml' -o -name '*.explore.lkml' | tr '\n' ' ')"; then
+          if ! python .github/scripts/lookml-audit-explore.py --files "$(find . -name '*.lkml' -o -name '*.lookml' | tr '\n' ' ')"; then
           echo "::warning::LookML explores are missing. See above for details."
         fi
       continue-on-error: true
