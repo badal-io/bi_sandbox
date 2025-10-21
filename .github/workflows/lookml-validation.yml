@@ -90,7 +90,7 @@ jobs:
       continue-on-error: false
 
     # Step 9: Check audit tests - move here just to check
-    - name: Check audit results
+    - name: Check audit results PK
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML audit..."
@@ -100,12 +100,22 @@ jobs:
       continue-on-error: true
 
     # Step 9.1: Check audit tests - move here just to check
-    - name: Check audit results
+    - name: Check audit results Explores
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML audit explores..."
           if ! python .github/scripts/lookml-audit-explore.py --files "$(find . -name '*.lkml' -o -name '*.lookml' | tr '\n' ' ')"; then
           echo "::warning::LookML explores are missing. See above for details."
+        fi
+      continue-on-error: true
+
+    # Step 9.2: Check audit tests - move here just to check
+    - name: Check audit results Joins
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "🔍 Running LookML audit explores..."
+          if ! python .github/scripts/lookml-audit-join.py --project-name="."; then
+          echo "::warning::LookML joins are missing. See above for details."
         fi
       continue-on-error: true
        
