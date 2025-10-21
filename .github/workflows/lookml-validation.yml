@@ -94,7 +94,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML audit..."
-          if ! python .github/scripts/lookml-audit.py --project-name="./views/general_views/taxi_trips.view.lkml"; then
+          if ! python .github/scripts/lookml-audit.py --project_root="./views/general_views/taxi_trips.view.lkml"; then
           echo "::warning::LookML audit found missing primary keys. See above for details."
         fi
       continue-on-error: true
