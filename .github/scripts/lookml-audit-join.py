@@ -4,34 +4,21 @@ import sys
 import os
 import glob # Useful for file discovery
 
-# Your existing function definition
 def test_only_many_to_one_joins(files):
-    # ... (Your current test_only_many_to_one_joins function body)
-    # ... (It should return the list of violations)
-    
+    # ...
+    # Simplified explore and join patterns are kept for now, but the relationship must be robust.
     pattern_explore = r'explore:\s*(\w+)\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}'
     pattern_join = r'join:\s*(\w+)\s*\{([^}]*)\}'
-    relationship_pattern = r'relationship:\s*(\w+)' # Simplified relationship pattern
+    
+    # --- FIX 1: Robust relationship pattern ---
+    # Requires re.MULTILINE flag to work with ^ and $ anchors
+    relationship_pattern = r'^\s*relationship:\s*(\w+)\s*$' 
     
     violations = []
-    
-    # [Insert your core logic here]
-    # For demonstration, I'll return an empty list if files is None
-    if not files:
-        return []
-    
-    # ... (rest of your function logic)
-    # The return statement should be:
-    # return violations
-    
+    # ...
     # --- Start of placeholder logic for function body ---
-    # This is a basic placeholder to ensure the script runs
     for file_path in files:
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except FileNotFoundError:
-            continue
+        # ... file reading logic ...
             
         for explore_match in re.finditer(pattern_explore, content, re.DOTALL):
             explore_name = explore_match.group(1)
@@ -41,9 +28,12 @@ def test_only_many_to_one_joins(files):
                 join_name = join_match.group(1)
                 join_body = join_match.group(2)
                 
-                rel_match = re.search(relationship_pattern, join_body)
+                # --- FIX 2: Pass re.MULTILINE to the search call ---
+                rel_match = re.search(relationship_pattern, join_body, re.MULTILINE)
+                
                 if rel_match:
                     relationship_type = rel_match.group(1)
+                    # This logic correctly catches 'one_to_one', 'one_to_many', etc.
                     if relationship_type != "many_to_one":
                         violations.append((file_path, explore_name, join_name, relationship_type))
                 else:
