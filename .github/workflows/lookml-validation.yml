@@ -103,13 +103,12 @@ jobs:
     - name: Check audit results
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
-        echo "🔍 Running LookML audit..."
-          if ! python .github/scripts/lookml-audit-explore.py --files "*.view.lkml *.explore.lkml"; then
-          echo "::warning::LookML audit found missing primary keys. See above for details."
+        echo "🔍 Running LookML audit explores..."
+          if ! python .github/scripts/lookml-audit-explore.py --files "$(find . -name '*.lkml' -o -name '*.lookml' | tr '\n' ' ')"; then
+          echo "::warning::LookML explores are missing. See above for details."
         fi
       continue-on-error: true
        
-
     # Step 2: Custom LookML Linting
     - name: Run LookML Linting
       if: steps.changed-files.outputs.any_changed == 'true'
