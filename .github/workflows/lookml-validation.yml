@@ -110,7 +110,7 @@ jobs:
       continue-on-error: true
 
     # Step 9.2: Check audit tests - move here just to check
-    - name: Check audit results Joins
+    - name: Audit LookML Joins for many_to_one
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML audit explores..."
