@@ -17,7 +17,6 @@ view: taxi_trips {
     label: "Taxi ID"
   }
 
-  # Sum measures for all numeric fields
   measure: trip_count {
     type: count
     description: "Sum of trip duration in seconds."
