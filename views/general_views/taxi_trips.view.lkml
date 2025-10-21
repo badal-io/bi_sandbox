@@ -3,7 +3,7 @@ view: taxi_trips {
   sql_table_name: `bigquery-public-data.chicago_taxi_trips.taxi_trips` ;;
 
   dimension: unique_key {
-
+    primary_key: yes
     type: string
     sql: ${TABLE}.unique_key ;;
     description: "Unique identifier for the trip."
@@ -11,6 +11,7 @@ view: taxi_trips {
   }
 
   dimension: taxi_id {
+    primary_key: yes
     type: string
     sql: ${TABLE}.taxi_id ;;
     description: "A unique identifier for the taxi."
