@@ -11,52 +11,33 @@ import glob
 import argparse
 import json
 
-
-# --- CORE LOGIC: ELEMENT COUNTING (REVISED AND ROBUST) ---
 def _get_query_counts(dashboard_body, verbose=False):
-    """
-    Core logic to count query executions (named + inline) in a dashboard body.
-    Uses robust regex to count YAML list items containing 'fields:' or 'explore:'.
-    """
-    counts = {
-        'named_queries': 0,
-        'inline_queries': 0,
-        'total_elements': 0,
-        'total_executions': 0
-    }
-    
-    # 1. FIND NAMED QUERIES 
-    named_query_pattern = r'\bquery:\s*(\w+)\s*\{'
-    named_queries = re.finditer(named_query_pattern, dashboard_body)
-    counts['named_queries'] = len(list(named_queries))
-    
-    # 2. COUNT QUERY-GENERATING ELEMENTS (The robust method)
-    
-    # Pattern explanation (re.DOTALL | re.MULTILINE):
-    # ^\s*-\s*title:\s* : Start of a list item with optional title
-    # .*?                 : Match anything non-greedily
-    # (\b(fields|explore):) : CAPTURE 'fields:' or 'explore:', confirming a query tile
-    # .*?                   : Match tile content non-greedily
-    # (?=\n\s*-|\n\s*filters:|\n\s*\w+:|\Z) : Lookahead for next list item, filter block, or end of file
-    
-    # We search the entire body for query tiles.
-    query_element_pattern = r'^\s*-\s*(?:title|name):\s*.*?\b(fields|explore):\s*.*?(?=\n\s*-|\n\s*filters:|\n\s*\w+:|\Z)'
-    
-    # Find all matches and count them
-    query_elements = re.findall(query_element_pattern, dashboard_body, re.DOTALL | re.MULTILINE)
-    
-    # We count every time a list item (starting with a hyphen) contains fields or explore.
-    counts['total_elements'] = len(query_elements)
-    counts['inline_queries'] = counts['total_elements']
-        
-    # 3. CALCULATE TOTAL EXECUTIONS
-    counts['total_executions'] = counts['named_queries'] + counts['inline_queries']
-    
-    if verbose:
-         print(f"DEBUG: Found {counts['total_elements']} query elements.")
-         
-    return counts
+    # ... (counts and named queries logic) ...
 
+    # 2. ISOLATE THE 'elements:' SECTION BODY 
+    # This block is still necessary to avoid counting fields/explores in filters or other blocks.
+    elements_section_match = re.search(r'(elements:\s*\n)(.+?)(?=\n\s*\w+:|\n\s*filters:|\Z)', 
+                                        dashboard_body, re.DOTALL)
+    
+    if elements_section_match:
+        # We only search the content *after* the 'elements:' declaration
+        elements_body = elements_section_match.group(2) 
+        
+        # 3. ROBUST ELEMENT COUNTING:
+        # Pattern finds a list item marker ('-\s*') followed by a title/name and *eventually* a query marker.
+        # It's less strict about line beginnings than the '^\s*' anchor.
+        
+        query_element_pattern = r'-\s*(?:title|name):\s*.*?\b(fields|explore):\s*'
+        
+        # We count occurrences of the unique signature of a query tile within the elements_body
+        query_elements = re.findall(query_element_pattern, elements_body, re.DOTALL)
+        
+        # query_elements now contains tuples of matches; the length is the count.
+        counts['total_elements'] = len(query_elements)
+        counts['inline_queries'] = counts['total_elements']
+
+    # ... (rest of the function)
+    return counts
 
 def find_matching_brace(text, start_pos):
     """
