@@ -104,7 +104,6 @@ explore: list_of_ids {
     sql_on: ${list_of_ids.id} = ${list_of_ids_2.id} ;;
     relationship: many_to_many
   }
-
   label: "List of IDs"
 }
 
