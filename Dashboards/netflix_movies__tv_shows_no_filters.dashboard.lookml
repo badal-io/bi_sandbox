@@ -59,7 +59,7 @@
     advanced_vis_config: |-
       {
         "chart": {
-          "backgroundColor": "#a7a7a7",
+          "backgroundColor": "#d3d3d3",
           "inverted": false,
           "style": {
             "fontFamily": "inherit",
