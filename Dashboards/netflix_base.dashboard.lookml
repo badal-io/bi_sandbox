@@ -118,7 +118,7 @@
     fields: [v_netflix_titles_enriched.movies_count, v_netflix_titles_enriched.tv_shows_count,
       v_netflix_titles_enriched.country]
     filters:
-      v_netflix_titles_enriched.country: "-NULL"
+      v_netflix_titles_enriched.country: "NULL"
       v_netflix_titles_enriched.date_added_date: 1 years
     sorts: [v_netflix_titles_enriched.movies_count desc 0]
     limit: 500
