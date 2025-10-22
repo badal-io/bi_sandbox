@@ -1,5 +1,5 @@
 ---
-- dashboard: netflix_movies__tv_shows_copy
+- dashboard: netflix_base
   title: Netflix Movies & TV Shows (copy)
   layout: newspaper
   preferred_viewer: dashboards-next
@@ -76,7 +76,7 @@
           "formatters": [{
               "select": "value > 10",
               "style": {
-                "color": "#FF69B4"
+                "color": "#FF79B4"
               }
             },
             {
