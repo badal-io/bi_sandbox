@@ -12,12 +12,11 @@ import argparse
 import json
 
 
-# --- CORE LOGIC: ELEMENT COUNTING (YAML-aware) ---
-# --- CORE LOGIC: ELEMENT COUNTING (REVISED) ---
+# --- CORE LOGIC: ELEMENT COUNTING (REVISED AND ROBUST) ---
 def _get_query_counts(dashboard_body, verbose=False):
     """
     Core logic to count query executions (named + inline) in a dashboard body.
-    REVISED: Uses a more robust method to count query-generating elements.
+    Uses robust regex to count YAML list items containing 'fields:' or 'explore:'.
     """
     counts = {
         'named_queries': 0,
@@ -26,39 +25,31 @@ def _get_query_counts(dashboard_body, verbose=False):
         'total_executions': 0
     }
     
-    # 1. FIND NAMED QUERIES (Execution count already handled here)
+    # 1. FIND NAMED QUERIES 
     named_query_pattern = r'\bquery:\s*(\w+)\s*\{'
     named_queries = re.finditer(named_query_pattern, dashboard_body)
     counts['named_queries'] = len(list(named_queries))
     
-    # 2. ISOLATE THE 'elements:' SECTION BODY
-    # Finds content after 'elements:' up to the next top-level block/filter/end.
-    elements_section_match = re.search(r'elements:\s*\n(.+?)(?=\n\s*\w+:|\n\s*filters:|\Z)', dashboard_body, re.DOTALL)
-
-    if elements_section_match:
-        elements_body = elements_section_match.group(1)
+    # 2. COUNT QUERY-GENERATING ELEMENTS (The robust method)
+    
+    # Pattern explanation (re.DOTALL | re.MULTILINE):
+    # ^\s*-\s*title:\s* : Start of a list item with optional title
+    # .*?                 : Match anything non-greedily
+    # (\b(fields|explore):) : CAPTURE 'fields:' or 'explore:', confirming a query tile
+    # .*?                   : Match tile content non-greedily
+    # (?=\n\s*-|\n\s*filters:|\n\s*\w+:|\Z) : Lookahead for next list item, filter block, or end of file
+    
+    # We search the entire body for query tiles.
+    query_element_pattern = r'^\s*-\s*(?:title|name):\s*.*?\b(fields|explore):\s*.*?(?=\n\s*-|\n\s*filters:|\n\s*\w+:|\Z)'
+    
+    # Find all matches and count them
+    query_elements = re.findall(query_element_pattern, dashboard_body, re.DOTALL | re.MULTILINE)
+    
+    # We count every time a list item (starting with a hyphen) contains fields or explore.
+    counts['total_elements'] = len(query_elements)
+    counts['inline_queries'] = counts['total_elements']
         
-        # --- REVISED COUNTING LOGIC ---
-        
-        # Count the total number of query-generating elements. 
-        # A query-generating element *must* have the 'fields:' parameter or 'explore:'.
-        # We count every instance of the element's start marker that is followed by one of these keys.
-        
-        # 3. COUNT TOTAL ELEMENTS (Tiles that run a query)
-        # Search for the start of a list item ('-') immediately followed by 'fields:' or 'explore:'
-        # This is the most reliable way to count queries in YAML list structure.
-        
-        query_element_pattern = r'-\s*(?:title|name):\s*.*?\n.*?\b(fields|explore):\s*'
-        
-        # Use findall for a clean count. The elements_body must be processed.
-        query_elements = re.findall(query_element_pattern, elements_body, re.DOTALL)
-        counts['total_elements'] = len(query_elements)
-        
-        # Since your dashboards use only inline queries (no query: name references),
-        # the number of inline queries equals the total number of query-generating elements.
-        counts['inline_queries'] = counts['total_elements']
-        
-    # 4. CALCULATE TOTAL EXECUTIONS
+    # 3. CALCULATE TOTAL EXECUTIONS
     counts['total_executions'] = counts['named_queries'] + counts['inline_queries']
     
     if verbose:
@@ -144,7 +135,6 @@ def count_dashboard_queries(files, max_queries=5, verbose=False):
         
         except Exception as e:
             if verbose:
-                # FIXED INDENTATION ERROR HERE
                 print(f"❌ Error processing file {file_path}: {e}")
             continue
     
@@ -155,7 +145,6 @@ def main():
     parser = argparse.ArgumentParser(
         description='Check that LookML dashboards do not exceed query limit'
     )
-    # NOTE: Default max queries is set to 5 here for consistency with your final log result.
     parser.add_argument('--project-name', default='.', help='Project root directory (default: current directory)')
     parser.add_argument('--max-queries', type=int, default=5, help='Maximum allowed queries per dashboard (default: 5)')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output for debugging')
@@ -185,7 +174,7 @@ def main():
         for f in files_to_audit:
             print(f"  - {f}")
     
-    # RUN AUDIT: Capture the returned count
+    # RUN AUDIT
     violations, dashboards_checked = count_dashboard_queries(
         files_to_audit,
         max_queries=args.max_queries,
