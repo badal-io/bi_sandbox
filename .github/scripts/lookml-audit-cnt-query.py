@@ -13,7 +13,7 @@ import argparse
 import json
 
 
-def count_dashboard_queries(files, max_queries=4, verbose=False):
+def count_dashboard_queries(files, max_queries=1, verbose=False):
     """
     Count queries/elements in each dashboard and flag those exceeding the limit.
    
