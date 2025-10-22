@@ -68,7 +68,7 @@
           "type": "column"
         },
         "series": [{
-          "color": "#7CC8FA",
+          "color": "#5CC9FA",
           "id": "v_netflix_titles_enriched.count",
           "name": "Movie & TV Show Count",
           "type": "column",
@@ -368,7 +368,7 @@
     type: looker_donut_multiples
     fields: [v_netflix_titles_enriched.country, v_netflix_titles_enriched.count, v_netflix_titles_enriched.movies_count]
     filters:
-      v_netflix_titles_enriched.country: "-NULL"
+      v_netflix_titles_enriched.country: "NULL"
       v_netflix_titles_enriched.date_added_date: 1 years
     sorts: [v_netflix_titles_enriched.count desc 0]
     limit: 500
