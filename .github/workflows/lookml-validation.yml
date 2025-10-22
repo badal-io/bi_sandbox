@@ -124,9 +124,7 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML audit explores..."
-          if ! python .github/scripts/lookml-audit-cnt-query.py --project-name="." --verbose; then
-          echo "::warning::LookML dashboards are missing. See above for details."
-        fi
+          python .github/scripts/lookml-audit-cnt-query.py --project-name="." --verbose
       continue-on-error: true
        
     # Step 2: Custom LookML Linting
