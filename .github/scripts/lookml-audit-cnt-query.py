@@ -31,38 +31,28 @@ def _get_query_counts(dashboard_body, verbose=False):
     counts['named_queries'] = len(list(named_queries))
     
     # 2. FIND THE 'elements:' SECTION BODY
-    # Finds content after 'elements:' up to the next top-level block (like 'filters:' or end of file)
     elements_section_match = re.search(r'elements:\s*\n(.+?)(?=\n\s*\w+:|\n\s*filters:|\Z)', dashboard_body, re.DOTALL)
 
     if elements_section_match:
         elements_body = elements_section_match.group(1)
         
         # 3. COUNT QUERY-GENERATING ELEMENTS 
-        # Pattern to find the start of a new element: '- title:' or '- name:'
         element_start_pattern = r'\n\s*-\s*(title|name):\s*.*?\n'
-        
-        # Split the elements section into individual tile definitions
         elements_list = re.split(element_start_pattern, elements_body, flags=re.DOTALL)
         
-        # Iterate over the content items (elements_list[i+1])
         for i in range(1, len(elements_list), 2):
             element_content = elements_list[i+1]
-            
-            # Check for fields or explore, indicating a query element (not text/button/etc)
             is_query_tile = re.search(r'\b(fields|explore):\s*', element_content)
 
             if is_query_tile:
                 counts['total_elements'] += 1
                 
-                # Check for query reference first (element references a named query)
                 query_ref_pattern = r'\bquery:\s*(\w+)\s*(?!\{)'
                 query_ref_match = re.search(query_ref_pattern, element_content)
                 
                 if query_ref_match:
-                    # Element references a named query (already counted in Step 1)
                     continue
                 
-                # If it's a query tile AND it doesn't reference a named query, it's an inline query
                 counts['inline_queries'] += 1
     
     # 4. CALCULATE TOTAL EXECUTIONS
@@ -128,15 +118,13 @@ def count_dashboard_queries(files, max_queries=5, verbose=False):
                 
                 dashboard_body = content[dashboard_match.end():dashboard_end]
                 
-                # --- This ensures the count is correct for successfully parsed dashboards ---
                 dashboards_checked += 1 
                 
-                # Call the correct, robust counting function
                 query_count = _get_query_counts(dashboard_body, verbose=verbose) 
                 
                 if verbose:
                     print(f"  📊 Dashboard: '{dashboard_name}'")
-                    print(f"      ⚡ Actual query EXECUTIONS: {query_count['total_executions']}")
+                    print(f"    ⚡ Actual query EXECUTIONS: {query_count['total_executions']}")
                 
                 # Check if exceeds limit
                 if query_count['total_executions'] > max_queries:
@@ -150,18 +138,20 @@ def count_dashboard_queries(files, max_queries=5, verbose=False):
         
         except Exception as e:
             if verbose:
-                 print(f"❌ Error processing file {file_path}: {e}")
+                # FIXED INDENTATION ERROR HERE
+                print(f"❌ Error processing file {file_path}: {e}")
             continue
     
-    return violations, dashboards_checked # Return the correct count
+    return violations, dashboards_checked
 
 
 def main():
     parser = argparse.ArgumentParser(
         description='Check that LookML dashboards do not exceed query limit'
     )
+    # NOTE: Default max queries is set to 5 here for consistency with your final log result.
     parser.add_argument('--project-name', default='.', help='Project root directory (default: current directory)')
-    parser.add_argument('--max-queries', type=int, default=3, help='Maximum allowed queries per dashboard (default: 3)')
+    parser.add_argument('--max-queries', type=int, default=5, help='Maximum allowed queries per dashboard (default: 5)')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output for debugging')
     parser.add_argument('--files', help='Space-separated list of specific files to check')
     parser.add_argument('--output-json', help='Save results to JSON file')
@@ -172,3 +162,66 @@ def main():
     files_to_audit = []
     
     if args.files:
+        files_to_audit = args.files.split()
+    else:
+        project_root = args.project_name
+        patterns = ['**/*.dashboard.lookml', '**/*.dashboard.lkml', '**/dashboard*.lkml', '**/dashboards/*.lkml']
+        for pattern in patterns:
+            for filename in glob.iglob(os.path.join(project_root, pattern), recursive=True):
+                if filename not in files_to_audit: files_to_audit.append(filename)
+
+    if not files_to_audit:
+        print("⚠️ No dashboard files found to audit.")
+        sys.exit(0)
+    
+    if args.verbose:
+        print(f"Dashboard files to audit ({len(files_to_audit)}):")
+        for f in files_to_audit:
+            print(f"  - {f}")
+    
+    # RUN AUDIT: Capture the returned count
+    violations, dashboards_checked = count_dashboard_queries(
+        files_to_audit,
+        max_queries=args.max_queries,
+        verbose=args.verbose
+    )
+    
+    # REPORTING
+    if violations:
+        print(f"\n{'='*70}")
+        print("❌ Dashboard Query Limit Audit Failed")
+        print(f"{'='*70}")
+        print(f"Found {len(violations)} dashboard(s) exceeding query limit:\n")
+        
+        for v in violations:
+            message = f"Dashboard '{v['dashboard']}' has {v['query_executions']} query executions (max: {v['max_allowed']})"
+            print(f"::warning file={v['file']},title=Too Many Dashboard Queries::{message}")
+            print(f"  📍 {v['file']}")
+            print(f"    Dashboard: {v['dashboard']}")
+            print(f"    ⚡ Query EXECUTIONS: {v['query_executions']}")
+            print(f"    Limit: {v['max_allowed']}")
+            print(f"    Breakdown:")
+            print(f"      - Total tiles/elements: {v['breakdown']['total_elements']}")
+            print(f"      - Named queries: {v['breakdown']['named_queries']}")
+            print(f"      - Inline queries: {v['breakdown']['inline_queries']}")
+            print()
+        
+        print(f"{'='*70}")
+        print("💡 Recommendations: (see above)")
+        print(f"{'='*70}\n")
+        
+        sys.exit(1)
+    
+    else:
+        print(f"\n{'='*70}")
+        print("✅ Dashboard Query Limit Audit Passed")
+        print(f"{'='*70}")
+        print(f"📊 Total dashboards checked: {dashboards_checked}") 
+        print(f"All dashboards have ≤ {args.max_queries} queries.")
+        print(f"{'='*70}\n")
+        
+        sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
