@@ -118,6 +118,16 @@ jobs:
           echo "::warning::LookML joins are missing. See above for details."
         fi
       continue-on-error: true
+
+    # Step 9.3: Check audit tests - move here just to check
+    - name: Audit LookML count of queries for Dashboard 
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "🔍 Running LookML audit explores..."
+          if ! python .github/scripts/lookml-audit-cnt-query.py --project-name="."; then
+          echo "::warning::LookML joins are missing. See above for details."
+        fi
+      continue-on-error: true
        
     # Step 2: Custom LookML Linting
     - name: Run LookML Linting
