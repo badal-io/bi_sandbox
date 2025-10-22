@@ -13,14 +13,11 @@ import argparse
 import json
 
 
-def count_dashboard_queries(files, max_queries=1, verbose=False):
+def count_dashboard_queries(files, max_queries=2, verbose=False):  
     """
     Count queries/elements in each dashboard and flag those exceeding the limit.
    
-    Counts:
-    - elements: (tiles with queries)
-    - queries: (named queries)
-    - filters: (dashboard filters that generate queries)
+    Counts actual query EXECUTIONS, not just tiles.
     """
     violations = []
     dashboards_checked = 0
@@ -58,27 +55,28 @@ def count_dashboard_queries(files, max_queries=1, verbose=False):
                 dashboard_body = content[dashboard_match.end():dashboard_end]
                 dashboards_checked += 1
                
-                # Count different types of query elements
-                query_count = count_queries_in_dashboard(dashboard_body)
+                # Count actual query executions (FIXED)
+                query_count = count_queries_in_dashboard(dashboard_body, verbose=verbose)
                
                 if verbose:
                     print(f"   📊 Dashboard: '{dashboard_name}'")
-                    print(f"      Elements: {query_count['elements']}")
-                    print(f"      Named queries: {query_count['queries']}")
-                    print(f"      Total query count: {query_count['total']}")
+                    print(f"      Total elements (tiles): {query_count['total_elements']}")
+                    print(f"      Named queries: {query_count['named_queries']}")
+                    print(f"      Inline queries: {query_count['inline_queries']}")
+                    print(f"      ⚡ Actual query EXECUTIONS: {query_count['total_executions']}")
                
-                # Check if exceeds limit
-                if query_count['total'] > max_queries:
+                # Check if exceeds limit (FIXED: using total_executions)
+                if query_count['total_executions'] > max_queries:
                     violations.append({
                         'file': file_path,
                         'dashboard': dashboard_name,
-                        'query_count': query_count['total'],
+                        'query_executions': query_count['total_executions'],
                         'max_allowed': max_queries,
                         'breakdown': query_count
                     })
                    
                     if verbose:
-                        print(f"      ❌ VIOLATION: {query_count['total']} queries exceeds limit of {max_queries}")
+                        print(f"      ❌ VIOLATION: {query_count['total_executions']} query executions exceeds limit of {max_queries}")
                 elif verbose:
                     print(f"      ✅ OK: Within limit")
                
@@ -103,35 +101,85 @@ def count_dashboard_queries(files, max_queries=1, verbose=False):
     return violations
 
 
-def count_queries_in_dashboard(dashboard_body):
+def count_queries_in_dashboard(dashboard_body, verbose=False):
     """
-    Count the number of queries in a dashboard body.
+    Count the actual number of query EXECUTIONS in a dashboard.
+   
+    Logic:
+    1. Count named queries (query: name { ... }) - executed once each
+    2. Count elements with inline queries (not referencing named queries)
+    3. Total = named queries + inline query elements
    
     Returns a dictionary with:
-    - elements: number of element blocks (tiles/visualizations)
-    - queries: number of named query blocks
-    - total: total count
+    - named_queries: number of named query definitions
+    - inline_queries: number of elements with inline queries
+    - total_elements: total number of tiles
+    - total_executions: actual query executions (what matters!)
     """
     counts = {
-        'elements': 0,
-        'queries': 0,
-        'total': 0
+        'named_queries': 0,
+        'inline_queries': 0,
+        'total_elements': 0,
+        'total_executions': 0
     }
    
-    # Count element blocks (each element typically represents a tile with a query)
-    # Pattern: element: element_name {
-    element_pattern = r'\belement:\s*\w+\s*\{'
-    counts['elements'] = len(re.findall(element_pattern, dashboard_body))
-   
-    # Count named query blocks
+    # Step 1: Find all named query blocks and store their names
     # Pattern: query: query_name {
-    query_pattern = r'\bquery:\s*\w+\s*\{'
-    counts['queries'] = len(re.findall(query_pattern, dashboard_body))
+    named_query_pattern = r'\bquery:\s*(\w+)\s*\{'
+    named_queries = re.finditer(named_query_pattern, dashboard_body)
+    named_query_names = set()
    
-    # Total is the sum (elements are the main queries)
-    # Named queries can be referenced by elements, so we count unique queries
-    # For simplicity, we'll count elements as the primary metric
-    counts['total'] = counts['elements']
+    for match in named_queries:
+        query_name = match.group(1)
+        named_query_names.add(query_name)
+        if verbose:
+            print(f"         Found named query: '{query_name}'")
+   
+    counts['named_queries'] = len(named_query_names)
+   
+    # Step 2: Find all element blocks and check if they have inline queries
+    element_pattern = r'\belement:\s*(\w+)\s*\{'
+   
+    for element_match in re.finditer(element_pattern, dashboard_body):
+        element_name = element_match.group(1)
+        element_start = element_match.start()
+       
+        # Find the matching closing brace for this element
+        element_end = find_matching_brace(dashboard_body, element_match.end() - 1)
+       
+        if element_end == -1:
+            # Can't find closing brace, skip
+            if verbose:
+                print(f"         Warning: Can't find closing brace for element '{element_name}'")
+            continue
+       
+        element_body = dashboard_body[element_match.end():element_end]
+        counts['total_elements'] += 1
+       
+        # Check if element references a named query OR has inline query
+       
+        # Pattern 1: Reference to named query: "query: query_name" (no opening brace after)
+        query_ref_pattern = r'\bquery:\s*(\w+)\s*(?!\{)'
+        query_ref_match = re.search(query_ref_pattern, element_body)
+       
+        if query_ref_match:
+            # This element references a named query
+            referenced_query = query_ref_match.group(1)
+            if verbose:
+                print(f"         Element '{element_name}' references named query '{referenced_query}'")
+            # Don't count - the named query is already counted
+            continue
+       
+        # Pattern 2: Inline query: "query: { ... }"
+        inline_query_pattern = r'\bquery:\s*\{'
+        if re.search(inline_query_pattern, element_body):
+            # This element has an inline query
+            counts['inline_queries'] += 1
+            if verbose:
+                print(f"         Element '{element_name}' has inline query")
+   
+    # Total query executions = named queries + inline queries
+    counts['total_executions'] = counts['named_queries'] + counts['inline_queries']
    
     return counts
 
@@ -255,7 +303,7 @@ def main():
         print(f"Found {len(violations)} dashboard(s) exceeding query limit:\n")
        
         for v in violations:
-            message = f"Dashboard '{v['dashboard']}' has {v['query_count']} queries (max: {v['max_allowed']})"
+            message = f"Dashboard '{v['dashboard']}' has {v['query_executions']} query executions (max: {v['max_allowed']})"
            
             # GitHub Actions annotation format
             print(f"::warning file={v['file']},title=Too Many Dashboard Queries::{message}")
@@ -263,10 +311,12 @@ def main():
             # Also print readable format
             print(f"   📍 {v['file']}")
             print(f"      Dashboard: {v['dashboard']}")
-            print(f"      Query count: {v['query_count']}")
+            print(f"      ⚡ Query EXECUTIONS: {v['query_executions']}")
             print(f"      Limit: {v['max_allowed']}")
-            print(f"      Elements (tiles): {v['breakdown']['elements']}")
-            print(f"      Named queries: {v['breakdown']['queries']}")
+            print(f"      Breakdown:")
+            print(f"         - Total tiles/elements: {v['breakdown']['total_elements']}")
+            print(f"         - Named queries: {v['breakdown']['named_queries']}")
+            print(f"         - Inline queries: {v['breakdown']['inline_queries']}")
             print()
        
         print(f"{'='*70}")
@@ -274,7 +324,7 @@ def main():
         print("   1. Split large dashboards into multiple smaller dashboards")
         print("   2. Remove unnecessary tiles/queries")
         print("   3. Combine related visualizations")
-        print("   4. Consider using dashboard filters instead of multiple queries")
+        print("   4. Use named queries and reference them (more efficient)")
         print(f"{'='*70}\n")
        
         sys.exit(1)  # Fail the check
