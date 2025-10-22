@@ -15,7 +15,7 @@
     fields: [v_netflix_titles_enriched.date_added_month, v_netflix_titles_enriched.count]
     fill_fields: [v_netflix_titles_enriched.date_added_month]
     sorts: [v_netflix_titles_enriched.date_added_month desc]
-    limit: 500
+    limit: 50
     column_limit: 50
     x_axis_gridlines: false
     y_axis_gridlines: true
