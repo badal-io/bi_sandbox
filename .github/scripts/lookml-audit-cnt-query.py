@@ -95,7 +95,7 @@ def count_dashboard_queries(files, max_queries=2, verbose=False):
    
     if verbose:
         print(f"{'='*70}")
-        print(f"📊 Total dashboards checked: {dashboards_checked}")
+        print(f"📊 Total dashboards checked: {len(files_to_audit)}")
         print(f"{'='*70}\n")
    
     return violations
