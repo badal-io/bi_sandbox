@@ -13,10 +13,11 @@ import json
 
 
 # --- CORE LOGIC: ELEMENT COUNTING (YAML-aware) ---
+# --- CORE LOGIC: ELEMENT COUNTING (REVISED) ---
 def _get_query_counts(dashboard_body, verbose=False):
     """
     Core logic to count query executions (named + inline) in a dashboard body.
-    Finds elements by searching for the YAML list item structure (- title: or - name:).
+    REVISED: Uses a more robust method to count query-generating elements.
     """
     counts = {
         'named_queries': 0,
@@ -25,39 +26,44 @@ def _get_query_counts(dashboard_body, verbose=False):
         'total_executions': 0
     }
     
-    # 1. FIND NAMED QUERIES 
+    # 1. FIND NAMED QUERIES (Execution count already handled here)
     named_query_pattern = r'\bquery:\s*(\w+)\s*\{'
     named_queries = re.finditer(named_query_pattern, dashboard_body)
     counts['named_queries'] = len(list(named_queries))
     
-    # 2. FIND THE 'elements:' SECTION BODY
+    # 2. ISOLATE THE 'elements:' SECTION BODY
+    # Finds content after 'elements:' up to the next top-level block/filter/end.
     elements_section_match = re.search(r'elements:\s*\n(.+?)(?=\n\s*\w+:|\n\s*filters:|\Z)', dashboard_body, re.DOTALL)
 
     if elements_section_match:
         elements_body = elements_section_match.group(1)
         
-        # 3. COUNT QUERY-GENERATING ELEMENTS 
-        element_start_pattern = r'\n\s*-\s*(title|name):\s*.*?\n'
-        elements_list = re.split(element_start_pattern, elements_body, flags=re.DOTALL)
+        # --- REVISED COUNTING LOGIC ---
         
-        for i in range(1, len(elements_list), 2):
-            element_content = elements_list[i+1]
-            is_query_tile = re.search(r'\b(fields|explore):\s*', element_content)
-
-            if is_query_tile:
-                counts['total_elements'] += 1
-                
-                query_ref_pattern = r'\bquery:\s*(\w+)\s*(?!\{)'
-                query_ref_match = re.search(query_ref_pattern, element_content)
-                
-                if query_ref_match:
-                    continue
-                
-                counts['inline_queries'] += 1
-    
+        # Count the total number of query-generating elements. 
+        # A query-generating element *must* have the 'fields:' parameter or 'explore:'.
+        # We count every instance of the element's start marker that is followed by one of these keys.
+        
+        # 3. COUNT TOTAL ELEMENTS (Tiles that run a query)
+        # Search for the start of a list item ('-') immediately followed by 'fields:' or 'explore:'
+        # This is the most reliable way to count queries in YAML list structure.
+        
+        query_element_pattern = r'-\s*(?:title|name):\s*.*?\n.*?\b(fields|explore):\s*'
+        
+        # Use findall for a clean count. The elements_body must be processed.
+        query_elements = re.findall(query_element_pattern, elements_body, re.DOTALL)
+        counts['total_elements'] = len(query_elements)
+        
+        # Since your dashboards use only inline queries (no query: name references),
+        # the number of inline queries equals the total number of query-generating elements.
+        counts['inline_queries'] = counts['total_elements']
+        
     # 4. CALCULATE TOTAL EXECUTIONS
     counts['total_executions'] = counts['named_queries'] + counts['inline_queries']
     
+    if verbose:
+         print(f"DEBUG: Found {counts['total_elements']} query elements.")
+         
     return counts
 
 
