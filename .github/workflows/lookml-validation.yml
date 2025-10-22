@@ -124,8 +124,8 @@ jobs:
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML audit explores..."
-          if ! python .github/scripts/lookml-audit-cnt-query.py --project-name="."; then
-          echo "::warning::LookML joins are missing. See above for details."
+          if ! python .github/scripts/lookml-audit-cnt-query.py --project-name="." --verbose; then
+          echo "::warning::LookML dashboards are missing. See above for details."
         fi
       continue-on-error: true
        
