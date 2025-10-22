@@ -76,7 +76,7 @@
           "formatters": [{
               "select": "value > 10",
               "style": {
-                "color": "#FF69B4"
+                "color": "#FF79B4"
               }
             },
             {
