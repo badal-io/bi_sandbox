@@ -68,7 +68,7 @@
           "type": "column"
         },
         "series": [{
-          "color": "#7CC8FA",
+          "color": "#7CC9FA",
           "id": "v_netflix_titles_enriched.count",
           "name": "Movie & TV Show Count",
           "type": "column",
