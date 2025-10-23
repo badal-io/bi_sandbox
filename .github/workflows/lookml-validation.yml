@@ -126,6 +126,14 @@ jobs:
         echo "🔍 Running LookML audit explores..."
           python .github/scripts/lookml-audit-cnt-query.py --project-name="." --verbose
       continue-on-error: true
+
+    # Step 9.4: Check audit dashboard lookml if filter exists
+    - name: Validate LookML Syntax
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Running LookML syntax validation..."
+        python .github/scripts/lookml-audit-dashboard-filters.py --files "$(find . -name '*.dashboard.lookml' | tr '\n' ' ')"
+      continue-on-error: false 
        
     # Step 2: Custom LookML Linting
     - name: Run LookML Linting
