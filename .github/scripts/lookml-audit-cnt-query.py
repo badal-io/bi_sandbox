@@ -247,37 +247,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-            print(f"      Breakdown:")
-            print(f"         - Total tiles/elements: {v['breakdown']['total_elements']}")
-            print(f"         - Named queries: {v['breakdown']['named_queries']}")
-            print(f"         - Inline queries: {v['breakdown']['inline_queries']}")
-            print()
-        
-        print(f"{'='*70}")
-        print("
-
- Recommendations:")
-        print("   1. Split large dashboards into multiple smaller dashboards")
-        print("   2. Remove unnecessary tiles/queries")
-        print("   3. Combine related visualizations")
-        print("   4. Use named queries and reference them (more efficient)")
-        print(f"{'='*70}\n")
-        
-        sys.exit(1)
-    else:
-        print(f"\n{'='*70}")
-        print("
-
- Dashboard Query Limit Audit Passed")
-        print(f"{'='*70}")
-        print(f"
-
- Total dashboards checked: {dashboards_checked}")
-        print(f"All dashboards have ≤ {args.max_queries} queries.")
-        print(f"{'='*70}\n")
-        
-        sys.exit(0)
-
-
-if __name__ == '__main__':
-    main()
