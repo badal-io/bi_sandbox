@@ -36,29 +36,25 @@ def _get_query_counts_yaml(dashboard_body, verbose=False):
 
 
 def count_dashboard_queries(files, max_queries=5, verbose=False):
-    """
-    Iterates through files, extracts dashboards, and calls the core counting function.
-    """
-    violations = []
-    dashboards_checked = 0
-    
-    if verbose:
-        print(f"\n{'='*70}")
-        print("
-
- Starting Dashboard Query Count Audit")
-        print(f"{'='*70}")
-        print(f"Maximum allowed queries per dashboard: {max_queries}\n")
-    
-    for file_path in files:
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            if verbose:
-                print(f"
-
- Processing: {file_path}")
+    """
+    Iterates through files, extracts dashboards, and calls the core counting function.
+    """
+    violations = []
+    dashboards_checked = 0
+    
+    if verbose:
+        print(f"\n{'='*70}")
+        print("\n Starting Dashboard Query Count Audit")
+        print(f"{'='*70}")
+        print(f"Maximum allowed queries per dashboard: {max_queries}\n")
+    
+    for file_path in files:
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            if verbose:
+                print(f"\n Processing: {file_path}")
             
             # Check if it's a YAML file (starts with ---)
             is_yaml = content.strip().startswith('---')
