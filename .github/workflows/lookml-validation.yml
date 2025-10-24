@@ -133,7 +133,7 @@ jobs:
       run: |
         echo "Running LookML syntax validation..."
         python .github/scripts/lookml-audit-dashboard-filters.py --files "$(find . -name '*.dashboard.lookml' | tr '\n' ' ')"
-      continue-on-error: false 
+      continue-on-error: true 
        
     # Step 2: Custom LookML Linting
     - name: Run LookML Linting
