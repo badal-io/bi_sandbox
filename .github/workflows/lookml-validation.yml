@@ -119,12 +119,14 @@ jobs:
         fi
       continue-on-error: true
 
-    # Step 9.3: Check audit tests - move here just to check
-    - name: Audit LookML count of queries for Dashboard 
+    # Step 9.3: Check audit count queries in Dashboard
+    - name: Audit LookML count queries in Dashboard
       if: steps.changed-files.outputs.any_changed == 'true'
       run: |
         echo "🔍 Running LookML audit explores..."
-          python .github/scripts/lookml-audit-cnt-query.py --project-name="." --verbose
+          if ! python .github/scripts/lookml-audit-cnt-query.py --project-name="."; then
+          echo "::warning::LookML joins are missing. See above for details."
+        fi
       continue-on-error: true
 
     # Step 9.4: Check audit dashboard lookml if filter exists
