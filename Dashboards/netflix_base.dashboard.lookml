@@ -450,7 +450,7 @@
     bar_target_label_font: 3
     bar_label_font_size: 3
     bar_fill_color: "#0092E5"
-    bar_background_color: "#CECECE"
+    bar_background_color: "#D6D6D6"
     bar_spinner_color: "#282828"
     bar_range_color: "#282828"
     listen:
