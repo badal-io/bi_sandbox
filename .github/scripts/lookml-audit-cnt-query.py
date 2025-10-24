@@ -10,94 +10,29 @@ import glob
 import argparse
 import json
 
+import yaml
 
-def _get_query_counts(dashboard_body, verbose=False):
-    """
-    Core logic to count query executions (named + inline) in a dashboard body.
-    Works with YAML-formatted dashboards.
-    """
-    counts = {
-        'named_queries': 0,
-        'inline_queries': 0,
-        'total_elements': 0,
-        'total_executions': 0
-    }
-    
-    # 1. FIND NAMED QUERIES (rarely used in YAML dashboards, but check anyway)
-    named_query_pattern = r'\bquery:\s*(\w+)\s*\{'
-    named_queries = re.finditer(named_query_pattern, dashboard_body)
-    named_query_names = set(match.group(1) for match in named_queries)
-    counts['named_queries'] = len(named_query_names)
-    
-    # 2. FIND THE 'elements:' SECTION
-    # Look for "elements:" followed by YAML list items
-    elements_section_match = re.search(r'elements:\s*\n((?:\s*-\s+.*\n(?:(?!\s*-\s+).*\n)*)+)', 
-                                      dashboard_body, re.DOTALL)
-    
-    if not elements_section_match:
-        if verbose:
-            print("      DEBUG: No elements section found")
-        return counts
-    
-    elements_body = elements_section_match.group(1)
-    
-    if verbose:
-        print(f"      DEBUG: Found elements section, length: {len(elements_body)} chars")
-    
-    # 3. SPLIT INTO INDIVIDUAL ELEMENTS
-    # Split on '- title:' or '- name:' which marks the start of each element
-    element_splits = re.split(r'\n\s*-\s+(?=title:|name:)', elements_body)
-    
-    # Remove empty first element if exists
-    element_splits = [e for e in element_splits if e.strip()]
-    
-    if verbose:
-        print(f"      DEBUG: Found {len(element_splits)} element blocks")
-    
-    # 4. PROCESS EACH ELEMENT
-    for idx, element_content in enumerate(element_splits):
-        if not element_content.strip():
-            continue
-        
-        if verbose:
-            preview = element_content[:150].replace('\n', ' ')
-            print(f"      DEBUG: Element {idx+1} preview: {preview}...")
-        
-        # Check if this is a query-generating element
-        # YAML dashboards have 'model:', 'explore:', and 'fields:' to indicate a query
-        has_model = re.search(r'\bmodel:\s*\w+', element_content)
-        has_explore = re.search(r'\bexplore:\s*\w+', element_content)
-        has_fields = re.search(r'\bfields:\s*\[', element_content)
-        
-        is_query_tile = has_model or has_explore or has_fields
-        
-        if not is_query_tile:
-            if verbose:
-                print(f"         → Not a query tile (no model/explore/fields)")
-            continue
-        
-        counts['total_elements'] += 1
-        
-        # In YAML dashboards, almost all query tiles have inline queries
-        # (unless they explicitly reference a named query with "query: query_name")
-        query_ref_pattern = r'\bquery:\s*(\w+)\s*(?!\{|\[)'
-        query_ref_match = re.search(query_ref_pattern, element_content)
-        
-        if query_ref_match and query_ref_match.group(1) in named_query_names:
-            # Element references a named query (already counted)
-            if verbose:
-                print(f"         → References named query: {query_ref_match.group(1)}")
-            continue
-        
-        # Otherwise, it's an inline query (the default for YAML dashboards)
-        counts['inline_queries'] += 1
-        if verbose:
-            print(f"         → Has inline query (model/explore/fields)")
-    
-    # 5. CALCULATE TOTAL EXECUTIONS
-    counts['total_executions'] = counts['named_queries'] + counts['inline_queries']
-    
-    return counts
+def _get_query_counts_yaml(dashboard_body, verbose=False):
+    counts = {
+        'named_queries': 0,
+        'inline_queries': 0,
+        'total_elements': 0,
+        'total_executions': 0
+    }
+    try:
+        data = yaml.safe_load(dashboard_body)
+        elements = data.get('elements', [])
+        counts['total_elements'] = len(elements)
+        for element in elements:
+            if 'query' in element:
+                counts['named_queries'] += 1
+            elif any(k in element for k in ['model', 'explore', 'fields']):
+                counts['inline_queries'] += 1
+        counts['total_executions'] = counts['named_queries'] + counts['inline_queries']
+    except Exception as e:
+        if verbose:
+            print(f"YAML parsing error: {e}")
+    return counts
 
 
 def count_dashboard_queries(files, max_queries=5, verbose=False):
