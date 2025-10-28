@@ -1,6 +1,6 @@
 # LookML Audit Scripts Documentation
 
-This folder contains Python scripts intended for auditing and validating LookML files in your project. Each script focuses on a specific best practice or rule for LookML dashboards, explores, and joins.
+This folder contains Python scripts intended for auditing and validating LookML files in your project. Each script focuses on a specific best practice or rule for LookML dashboards, explores, joins, and views.
 
 ## Scripts Overview
 
@@ -26,6 +26,12 @@ This folder contains Python scripts intended for auditing and validating LookML 
 **Purpose**: Checks that all join relationships in explores are set to `many_to_one`.
 - Flags any non-`many_to_one` relationships (`one_to_one`, `one_to_many`, `many_to_many`, or missing).
 - Reports violations and provides recommendations for fixes.
+
+### 5. `lookml-audit.py`
+**Purpose**: Finds LookML views that do not have a `primary_key: yes` defined.
+- Scans all view files in the project for missing primary key declarations.
+- Reports files and views where the primary key is absent.
+- Intended to enforce LookML modeling best practices.
 
 ## Usage
 
