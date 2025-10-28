@@ -1,26 +1,35 @@
 name: Spectacles LookML Validation
 
+# Disabled: Only lookml-validation-partly.yml should run
+# on:
+#   pull_request:
+#     branches: [ main, master, develop ]
+#     paths: 
+#       - '**/*.lookml'
+#       - '**/*.lkml'
+#       - '**/*.model'
+#       - '**/*.view'
+#       - '**/*.explore'
+#       - '**/*.dashboard'
+#       - 'manifest.lkml'
+#   push:
+#     branches: [ main, master ]
+#     paths: 
+#       - '**/*.lookml'
+#       - '**/*.lkml'
+#       - '**/*.model'
+#       - '**/*.view'
+#       - '**/*.explore'
+#       - '**/*.dashboard'
+#       - 'manifest.lkml'
+
 on:
-  pull_request:
-    branches: [ main, master, develop ]
-    paths: 
-      - '**/*.lookml'
-      - '**/*.lkml'
-      - '**/*.model'
-      - '**/*.view'
-      - '**/*.explore'
-      - '**/*.dashboard'
-      - 'manifest.lkml'
-  push:
-    branches: [ main, master ]
-    paths: 
-      - '**/*.lookml'
-      - '**/*.lkml'
-      - '**/*.model'
-      - '**/*.view'
-      - '**/*.explore'
-      - '**/*.dashboard'
-      - 'manifest.lkml'
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run this disabled workflow'
+        required: false
+        default: 'false'
 
 jobs:
   spectacles-validation:
