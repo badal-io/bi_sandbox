@@ -5,9 +5,23 @@ CI/CD pipeline is a comprehensive LookML Validation Pipeline that automatically 
 
 ## Trigger Events
 The pipeline runs on:
+* **Manual workflow dispatch**: Can be triggered manually from GitHub Actions UI
 * Pull Requests to main, master, or develop branches
 * Direct pushes to main or master branches
 * Only when LookML-related files are changed (.lkml, .lookml, .view, etc.)
+
+### Manual Triggering
+The LookML Validation Pipeline can be manually triggered:
+1. Go to the repository's **Actions** tab on GitHub
+2. Select **"LookML Validation Pipeline"** from the workflows list
+3. Click **"Run workflow"** button
+4. Select the branch you want to run the validation on
+5. Click **"Run workflow"** to start the validation
+
+This is useful for:
+- Re-running validation without making code changes
+- Testing the pipeline on a specific branch
+- Validating LookML code before creating a pull request
   
 ## File Structure & Responsibilities
 
