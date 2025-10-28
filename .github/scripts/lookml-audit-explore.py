@@ -41,7 +41,7 @@ class OrphanedViewsChecker:
             self.collect_explores(file_path, content)
            
         except Exception as e:
-            print(f"❌ Error processing {file_path}: {str(e)}")
+            print(f"⚠️ Warning processing {file_path}: {str(e)}")
    
     def collect_views(self, file_path: str, content: str) -> None:
         """Collect all view definitions"""
@@ -185,7 +185,7 @@ class OrphanedViewsChecker:
            
             print(f"\n📄 Results saved to: {output_file}")
         except Exception as e:
-            print(f"\n❌ Failed to save results: {e}")
+            print(f"\n⚠️ Warning to save results: {e}")
 
 
 def main():
