@@ -10,7 +10,7 @@ import os
 import glob
 import argparse
 import yaml
-
+import json  # <-- ADDED
 
 def check_dashboard_has_filters(files, verbose=False):
     """
@@ -200,9 +200,18 @@ def main():
                 if filename not in files_to_audit:
                     files_to_audit.append(filename)
     
+    # --- ADDED: Always write a valid JSON file, even if no files found ---
     if not files_to_audit:
+        summary = {
+            "dashboards_missing_filters": 0,
+            "total_dashboards_checked": 0,
+            "violations": []
+        }
+        with open("dashboard_filters_results.json", "w") as f:
+            json.dump(summary, f, indent=2)
         print("⚠️  No dashboard files found to audit.")
         sys.exit(0)
+    # ---------------------------------------------------------------------
     
     if args.verbose:
         print(f"Dashboard files to audit ({len(files_to_audit)}):")
