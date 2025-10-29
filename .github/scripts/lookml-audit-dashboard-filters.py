@@ -215,6 +215,15 @@ def main():
         verbose=args.verbose
     )
     
+    # Write summary JSON
+    summary = {
+        "dashboards_missing_filters": len(violations),
+        "total_dashboards_checked": dashboards_checked,
+        "violations": violations
+    }
+    with open("dashboard_filters_results.json", "w") as f:
+        json.dump(summary, f, indent=2)    
+    
     # REPORTING
     if violations:
         print(f"\n{'='*70}")
