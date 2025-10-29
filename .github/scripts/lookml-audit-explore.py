@@ -232,6 +232,16 @@ def main():
    
     # Save results
     checker.save_results(args.output_file)
+
+    # ===> ADD THE SUMMARY PART HERE <===
+    summary = {
+        "orphaned_views_count": len(orphaned_views),
+        "total_views_checked": len(checker.views),
+        "orphaned_views": orphaned_views
+    }
+    with open("orphaned_views_results.json", "w") as f:
+        import json
+        json.dump(summary, f, indent=2)    
    
     # Exit with appropriate code
     if len(orphaned_views) > 0:
