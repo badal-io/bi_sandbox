@@ -10,7 +10,7 @@ import sys
 import os
 import glob
 import argparse
-
+import json  # <-- ADDED
 
 def test_only_many_to_one_joins(files, verbose=False):
     """
@@ -148,7 +148,6 @@ def test_only_many_to_one_joins(files, verbose=False):
     
     return violations
 
-
 def find_matching_brace(text, start_pos):
     """
     Find the position of the matching closing brace.
@@ -169,7 +168,6 @@ def find_matching_brace(text, start_pos):
         return pos - 1
     else:
         return -1
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -208,11 +206,20 @@ def main():
                     # Check if it's a model or explore file
                     if filename.endswith(('.model.lkml', '.explore.lkml')) or 'explore' in filename.lower():
                         files_to_audit.append(filename)
-    
+
+    # --- ADDED: Always write a valid JSON file, even if no files found ---
     if not files_to_audit:
+        summary = {
+            "joins_with_invalid_relationship": 0,
+            "total_joins_checked": 0,
+            "violations": []
+        }
+        with open("join_relationship_results.json", "w") as f:
+            json.dump(summary, f, indent=2)
         print("⚠️  No LookML files found to audit.")
         sys.exit(0)
-    
+    # ---------------------------------------------------------------------
+
     if args.verbose:
         print(f"Files to audit ({len(files_to_audit)}):")
         for f in files_to_audit:
@@ -264,7 +271,6 @@ def main():
         print(f"{'='*70}\n")
         
         sys.exit(0)  # Pass the check
-
 
 if __name__ == '__main__':
     main()
