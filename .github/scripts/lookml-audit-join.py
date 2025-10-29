@@ -121,7 +121,7 @@ def test_only_many_to_one_joins(files, verbose=False):
                             })
                             
                             if verbose:
-                                print(f"         ❌ VIOLATION: Expected 'many_to_one', found '{relationship_type}'")
+                                print(f"         ⚠️ Warning: Expected 'many_to_one', found '{relationship_type}'")
                     else:
                         # Missing relationship declaration
                         violations.append({
@@ -132,13 +132,13 @@ def test_only_many_to_one_joins(files, verbose=False):
                         })
                         
                         if verbose:
-                            print(f"         ❌ VIOLATION: Relationship declaration MISSING")
+                            print(f"         ⚠️ Warning: Relationship declaration MISSING")
         
         except FileNotFoundError:
             print(f"⚠️  Warning: File not found at {file_path}. Skipping.")
             continue
         except Exception as e:
-            print(f"❌ Error processing file {file_path}: {e}")
+            print(f"⚠️ Warning processing file {file_path}: {e}")
             continue
     
     if verbose:
@@ -220,11 +220,20 @@ def main():
     
     # RUN AUDIT
     violations = test_only_many_to_one_joins(files_to_audit, verbose=args.verbose)
-    
+
+    # Write summary JSON
+    summary = {
+        "joins_with_invalid_relationship": len(violations),
+        "total_joins_checked": sum(1 for v in violations),
+        "violations": violations
+    }
+    with open("join_relationship_results.json", "w") as f:
+        json.dump(summary, f, indent=2)
+        
     # REPORTING
     if violations:
         print(f"\n{'='*70}")
-        print("❌ LookML Join Audit Failed")
+        print("⚠️ Warning LookML Join Audit Failed")
         print(f"{'='*70}")
         print(f"Found {len(violations)} violation(s):\n")
         

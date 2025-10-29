@@ -41,7 +41,7 @@ class OrphanedViewsChecker:
             self.collect_explores(file_path, content)
            
         except Exception as e:
-            print(f"❌ Error processing {file_path}: {str(e)}")
+            print(f"⚠️ Warning processing {file_path}: {str(e)}")
    
     def collect_views(self, file_path: str, content: str) -> None:
         """Collect all view definitions"""
@@ -185,7 +185,7 @@ class OrphanedViewsChecker:
            
             print(f"\n📄 Results saved to: {output_file}")
         except Exception as e:
-            print(f"\n❌ Failed to save results: {e}")
+            print(f"\n⚠️ Warning to save results: {e}")
 
 
 def main():
@@ -232,6 +232,16 @@ def main():
    
     # Save results
     checker.save_results(args.output_file)
+
+    # ===> ADD THE SUMMARY PART HERE <===
+    summary = {
+        "orphaned_views_count": len(orphaned_views),
+        "total_views_checked": len(checker.views),
+        "orphaned_views": orphaned_views
+    }
+    with open("orphaned_views_results.json", "w") as f:
+        import json
+        json.dump(summary, f, indent=2)    
    
     # Exit with appropriate code
     if len(orphaned_views) > 0:

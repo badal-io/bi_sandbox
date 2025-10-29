@@ -91,7 +91,7 @@ def check_dashboard_has_filters(files, verbose=False):
                         })
                         
                         if verbose:
-                            print(f"      ❌ VIOLATION: No filters defined")
+                            print(f"      ⚠️ Warning: No filters defined")
                     else:
                         # Has filters
                         filter_count = len(filters)
@@ -130,7 +130,7 @@ def check_dashboard_has_filters(files, verbose=False):
                         })
                         
                         if verbose:
-                            print(f"      ❌ VIOLATION: No filters defined (regex)")
+                            print(f"      ⚠️ Warning: No filters defined (regex)")
                     else:
                         # Count filters using regex
                         filter_count = len(re.findall(r'\n\s*-\s+name:\s+', content))
@@ -144,7 +144,7 @@ def check_dashboard_has_filters(files, verbose=False):
             print(f"⚠️  Warning: File not found at {file_path}. Skipping.")
             continue
         except Exception as e:
-            print(f"❌ Error processing file {file_path}: {e}")
+            print(f"⚠️ Warning processing file {file_path}: {e}")
             if verbose:
                 import traceback
                 traceback.print_exc()
@@ -215,10 +215,19 @@ def main():
         verbose=args.verbose
     )
     
+    # Write summary JSON
+    summary = {
+        "dashboards_missing_filters": len(violations),
+        "total_dashboards_checked": dashboards_checked,
+        "violations": violations
+    }
+    with open("dashboard_filters_results.json", "w") as f:
+        json.dump(summary, f, indent=2)    
+    
     # REPORTING
     if violations:
         print(f"\n{'='*70}")
-        print("❌ Dashboard Filter Validation Failed")
+        print("⚠️ Warning - Dashboard Filter Validation Failed")
         print(f"{'='*70}")
         print(f"Found {len(violations)} dashboard(s) without filters:\n")
         

@@ -204,7 +204,17 @@ def main():
         max_queries=args.max_queries,
         verbose=args.verbose
     )
-
+    
+    # Write summary JSON
+    summary = {
+        "dashboards_exceeding_query_limit": len(violations),
+        "total_dashboards_checked": dashboards_checked,
+        "violations": violations
+    }
+    output_path = args.output_json or "query_limit_results.json"
+    with open(output_path, "w") as f:
+        json.dump(summary, f, indent=2)
+        
     # REPORTING
     if violations:
         print(f"\n{'='*70}")
