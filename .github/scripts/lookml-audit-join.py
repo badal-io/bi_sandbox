@@ -220,7 +220,16 @@ def main():
     
     # RUN AUDIT
     violations = test_only_many_to_one_joins(files_to_audit, verbose=args.verbose)
-    
+
+    # Write summary JSON
+    summary = {
+        "joins_with_invalid_relationship": len(violations),
+        "total_joins_checked": sum(1 for v in violations),
+        "violations": violations
+    }
+    with open("join_relationship_results.json", "w") as f:
+        json.dump(summary, f, indent=2)
+        
     # REPORTING
     if violations:
         print(f"\n{'='*70}")
