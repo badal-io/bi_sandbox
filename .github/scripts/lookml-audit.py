@@ -12,6 +12,7 @@ import argparse
 import os
 import glob
 import sys
+import json  # <-- ADDED
 
 VIEW_BLOCK_RE = re.compile(r'view:\s*(\w+)\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}', re.DOTALL)
 PRIMARY_KEY_RE = re.compile(r'primary_key:\s*yes\b')
@@ -51,9 +52,19 @@ def main():
     project_root = args.project_name if os.path.isdir(args.project_name) else "."
 
     files_to_audit = collect_lookml_files(project_root)
+
+    # --- ADDED: Always write a valid JSON file, even if no files found ---
     if not files_to_audit:
+        summary = {
+            "views_missing_primary_key": 0,
+            "total_views_checked": 0,
+            "missing_primary_keys": []
+        }
+        with open("primary_key_results.json", "w") as f:
+            json.dump(summary, f, indent=2)
         print(f"No LookML files found under {project_root}/views (looked for *.view.lkml and *.view)")
         sys.exit(1)
+    # ---------------------------------------------------------------------
 
     print(f"Auditing {len(files_to_audit)} LookML files in project root '{project_root}'...")
     missing_pks = find_views_without_primary_keys(files_to_audit)
