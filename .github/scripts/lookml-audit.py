@@ -58,6 +58,17 @@ def main():
     print(f"Auditing {len(files_to_audit)} LookML files in project root '{project_root}'...")
     missing_pks = find_views_without_primary_keys(files_to_audit)
 
+    # Write summary JSON before exit
+    summary = {
+        "views_missing_primary_key": len(missing_pks),
+        "total_views_checked": len(files_to_audit),
+        "missing_primary_keys": [
+            {"file": file_path, "view": view_name} for file_path, view_name in missing_pks
+        ]
+    }
+    with open("primary_key_results.json", "w") as f:
+        json.dump(summary, f, indent=2)
+      
     if missing_pks:
         print("Views missing primary_key:")
         for file_path, view_name in missing_pks:
