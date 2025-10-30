@@ -60,7 +60,7 @@ def generate_github_summary():
             print(f"Warning: Could not read content validation results: {e}")
 
     # --- Read EK Audit Script Results ---
-    summary_lines.append("\n## EK Audit Script Results\n")
+    summary_lines.append("\n## Audit Script Results\n")
     # Orphaned Views
     if os.path.exists("orphaned_views_results.json"):
         try:
