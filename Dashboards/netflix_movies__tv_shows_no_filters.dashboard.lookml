@@ -1,6 +1,6 @@
 ---
-- dashboard: netflix_extended
-  title: Netflix Movies & TV Shows (copy)
+- dashboard: netflix_movies__tv_shows_no_filters
+  title: Netflix Movies & TV Shows No Filters
   layout: newspaper
   preferred_viewer: dashboards-next
   crossfilter_enabled: true
@@ -59,7 +59,7 @@
     advanced_vis_config: |-
       {
         "chart": {
-          "backgroundColor": "#d6d6d6",
+          "backgroundColor": "#d3d3d3",
           "inverted": false,
           "style": {
             "fontFamily": "inherit",

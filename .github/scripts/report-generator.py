@@ -58,7 +58,51 @@ def generate_github_summary():
                 content_validation_data = json.load(f)
         except Exception as e:
             print(f"Warning: Could not read content validation results: {e}")
-    
+
+    # --- Read EK Audit Script Results ---
+    summary_lines.append("\n## Audit Script Results\n")
+    # Orphaned Views
+    if os.path.exists("orphaned_views_results.json"):
+        try:
+            with open("orphaned_views_results.json") as f:
+                data = json.load(f)
+                summary_lines.append(f"- Orphaned views found: {data.get('orphaned_views_count', 0)}")
+        except Exception as e:
+            summary_lines.append(f"- Could not read orphaned_views_results.json: {e}")
+    # Dashboard Query Limit
+    if os.path.exists("query_limit_results.json"):
+        try:
+            with open("query_limit_results.json") as f:
+                data = json.load(f)
+                summary_lines.append(f"- Dashboards exceeding query limit: {data.get('dashboards_exceeding_query_limit', 0)}")
+        except Exception as e:
+            summary_lines.append(f"- Could not read query_limit_results.json: {e}")
+    # Dashboard Filters
+    if os.path.exists("dashboard_filters_results.json"):
+        try:
+            with open("dashboard_filters_results.json") as f:
+                data = json.load(f)
+                summary_lines.append(f"- Dashboards missing filters: {data.get('dashboards_missing_filters', 0)}")
+        except Exception as e:
+            summary_lines.append(f"- Could not read dashboard_filters_results.json: {e}")
+    # Join Relationships
+    if os.path.exists("join_relationship_results.json"):
+        try:
+            with open("join_relationship_results.json") as f:
+                data = json.load(f)
+                summary_lines.append(f"- Joins with invalid relationship: {data.get('joins_with_invalid_relationship', 0)}")
+        except Exception as e:
+            summary_lines.append(f"- Could not read join_relationship_results.json: {e}")
+    # Primary Key Missing
+    if os.path.exists("primary_key_results.json"):
+        try:
+            with open("primary_key_results.json") as f:
+                data = json.load(f)
+                summary_lines.append(f"- Views missing primary key: {data.get('views_missing_primary_key', 0)}")
+        except Exception as e:
+            summary_lines.append(f"- Could not read primary_key_results.json: {e}")
+    summary_lines.append("")
+
     # Add files processed
     summary_lines.append("### Files Processed:")
     files_processed = set()
@@ -281,7 +325,51 @@ def generate_pr_comment():
                 content_validation_data = json.load(f)
     except Exception as e:
         comment_lines.append(f"Could not read content validation results: {e}\n")
-    
+
+    # --- Read EK Audit Script Results ---
+    comment_lines.append("\n## EK Audit Script Results\n")
+    # Orphaned Views
+    if os.path.exists("orphaned_views_results.json"):
+        try:
+            with open("orphaned_views_results.json") as f:
+                data = json.load(f)
+                comment_lines.append(f"- Orphaned views found: {data.get('orphaned_views_count', 0)}")
+        except Exception as e:
+            comment_lines.append(f"- Could not read orphaned_views_results.json: {e}")
+    # Dashboard Query Limit
+    if os.path.exists("query_limit_results.json"):
+        try:
+            with open("query_limit_results.json") as f:
+                data = json.load(f)
+                comment_lines.append(f"- Dashboards exceeding query limit: {data.get('dashboards_exceeding_query_limit', 0)}")
+        except Exception as e:
+            comment_lines.append(f"- Could not read query_limit_results.json: {e}")
+    # Dashboard Filters
+    if os.path.exists("dashboard_filters_results.json"):
+        try:
+            with open("dashboard_filters_results.json") as f:
+                data = json.load(f)
+                comment_lines.append(f"- Dashboards missing filters: {data.get('dashboards_missing_filters', 0)}")
+        except Exception as e:
+            comment_lines.append(f"- Could not read dashboard_filters_results.json: {e}")
+    # Join Relationships
+    if os.path.exists("join_relationship_results.json"):
+        try:
+            with open("join_relationship_results.json") as f:
+                data = json.load(f)
+                comment_lines.append(f"- Joins with invalid relationship: {data.get('joins_with_invalid_relationship', 0)}")
+        except Exception as e:
+            comment_lines.append(f"- Could not read join_relationship_results.json: {e}")
+    # Primary Key Missing
+    if os.path.exists("primary_key_results.json"):
+        try:
+            with open("primary_key_results.json") as f:
+                data = json.load(f)
+                comment_lines.append(f"- Views missing primary key: {data.get('views_missing_primary_key', 0)}")
+        except Exception as e:
+            comment_lines.append(f"- Could not read primary_key_results.json: {e}")
+    comment_lines.append("")
+
     # Process validation errors
     validation_errors = validation_data.get('errors', [])
     if validation_errors:

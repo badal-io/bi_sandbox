@@ -1,6 +1,8 @@
 name: LookML Validation Pipeline
 
+# workflow will run automatically on PR or push (as before) and can be triggered manually
 on:
+  workflow_dispatch:
   pull_request:
     branches: [ main, master, develop ]
     paths: 
@@ -88,7 +90,55 @@ jobs:
         echo "Running LookML syntax validation..."
         python .github/scripts/looker-validator.py --project-name="bi_sandbox"
       continue-on-error: false
-    
+
+    # Step 9: Check audit tests - move here just to check
+    - name: Check audit results PK
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "🔍 Running LookML audit..."
+          if ! python .github/scripts/lookml-audit.py --project-name="."; then
+          echo "::warning::LookML audit found missing primary keys. See above for details."
+        fi
+      continue-on-error: true
+
+    # Step 9.1: Check audit tests - move here just to check
+    - name: Check audit results Explores
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "🔍 Running LookML audit explores..."
+          if ! python .github/scripts/lookml-audit-explore.py --files "$(find . -name '*.lkml' -o -name '*.lookml' | tr '\n' ' ')"; then
+          echo "::warning::LookML explores are missing. See above for details."
+        fi
+      continue-on-error: true
+
+    # Step 9.2: Check audit tests - move here just to check
+    - name: Audit LookML Joins for many_to_one
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "🔍 Running LookML audit explores..."
+          if ! python .github/scripts/lookml-audit-join.py --project-name="."; then
+          echo "::warning::LookML joins are missing. See above for details."
+        fi
+      continue-on-error: true
+
+    # Step 9.3: Check audit count queries in Dashboard
+    - name: Audit LookML count queries in Dashboard
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "🔍 Running LookML audit explores..."
+          if ! python .github/scripts/lookml-audit-cnt-query.py --project-name="."; then
+          echo "::warning::LookML joins are missing. See above for details."
+        fi
+      continue-on-error: true
+
+    # Step 9.4: Check audit dashboard lookml if filter exists
+    - name: Validate LookML Syntax
+      if: steps.changed-files.outputs.any_changed == 'true'
+      run: |
+        echo "Running LookML syntax validation..."
+        python .github/scripts/lookml-audit-dashboard-filters.py --files "$(find . -name '*.dashboard.lookml' | tr '\n' ' ')"
+      continue-on-error: true 
+       
     # Step 2: Custom LookML Linting
     - name: Run LookML Linting
       if: steps.changed-files.outputs.any_changed == 'true'
@@ -149,7 +199,7 @@ jobs:
       run: |
         python .github/scripts/check-results.py
     
-    # Step 9: Comment PR with results
+    # Step 10: Comment PR with results
     - name: Comment PR with results
       if: github.event_name == 'pull_request' && steps.changed-files.outputs.any_changed == 'true'
       uses: actions/github-script@v7

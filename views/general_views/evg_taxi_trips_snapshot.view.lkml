@@ -8,6 +8,7 @@ view: evg_taxi_trips_snapshot {
   }
 
   dimension: unique_key {
+    primary_key: yes
     type: string
     sql: ${TABLE}.unique_key ;;
   }
