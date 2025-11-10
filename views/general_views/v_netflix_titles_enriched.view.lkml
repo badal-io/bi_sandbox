@@ -10,6 +10,14 @@ view: v_netflix_titles_enriched {
     map_layer_name: countries
     sql: ${TABLE}.country ;;
   }
+
+  dimension: country_multi {
+    type: string
+    map_layer_name: countries
+    sql: ${TABLE}.country ;;
+    label: "{% if _user_attributes['language_test'] == 'FR' %} Les Pays {% elsif _user_attributes['language_test'] == 'EN' %} Country {% else %} Country Name {% endif %}"
+  }
+
   dimension_group: date_added {
     type: time
     timeframes: [raw, date, week, month, quarter, year]
