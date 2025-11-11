@@ -35,6 +35,7 @@ view: v_netflix_titles_enriched {
         {% elsif _user_attributes['language_test'] == 'EN' %} Sales Dashboard
         {% else %} Default Dashboard
         {% endif %}" ;;
+    label:  "{% if _user_attributes['language_test'] == 'FR' %} Les Pays {% elsif _user_attributes['language_test'] == 'EN' %} Country {% else %} Country Name {% endif %}"
   }
 
   dimension_group: date_added {
@@ -71,6 +72,12 @@ view: v_netflix_titles_enriched {
   dimension: rating {
     type: string
     sql: ${TABLE}.rating ;;
+  }
+  dimension: rating_multi {
+    type: string
+    sql: ${TABLE}.rating ;;
+    # Dynamically set the label based on the user's language_test attribute
+    label: "{% if _user_attributes['language_test'] == 'FR' %} L'Évaluation {% else %} Rating {% endif %}"
   }
   dimension: release_year {
     type: number
