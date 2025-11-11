@@ -10,6 +10,34 @@ view: v_netflix_titles_enriched {
     map_layer_name: countries
     sql: ${TABLE}.country ;;
   }
+
+  dimension: country_multi {
+    type: string
+    map_layer_name: countries
+    sql: ${TABLE}.country ;;
+    label: "{% if _user_attributes['language_test'] == 'FR' %} Les Pays {% elsif _user_attributes['language_test'] == 'EN' %} Country {% else %} Country Name {% endif %}"
+  }
+
+# In a view file, e.g., 'utils_view.view'
+  dimension: dashboard_title_text {
+    type: string
+    hidden: yes
+    sql: "{% if _user_attributes['language_test'] == 'FR' %} Tableau de Bord des Ventes
+        {% elsif _user_attributes['language_test'] == 'EN' %} Sales Dashboard
+        {% else %} Default Dashboard
+        {% endif %}" ;;
+  }
+# In a view file, e.g., 'utils_view.view'
+  filter: dashboard_title_filter {
+    # The 'type: string' is implied, but you could add it.
+    # The 'sql' parameter is where the magic happens.
+    sql: "{% if _user_attributes['language_test'] == 'FR' %} Tableau de Bord des Ventes
+        {% elsif _user_attributes['language_test'] == 'EN' %} Sales Dashboard
+        {% else %} Default Dashboard
+        {% endif %}" ;;
+    label:  "{% if _user_attributes['language_test'] == 'FR' %} Les Pays {% elsif _user_attributes['language_test'] == 'EN' %} Country {% else %} Country Name {% endif %}"
+  }
+
   dimension_group: date_added {
     type: time
     timeframes: [raw, date, week, month, quarter, year]
@@ -45,6 +73,12 @@ view: v_netflix_titles_enriched {
     type: string
     sql: ${TABLE}.rating ;;
   }
+  dimension: rating_multi {
+    type: string
+    sql: ${TABLE}.rating ;;
+    # Dynamically set the label based on the user's language_test attribute
+    label: "{% if _user_attributes['language_test'] == 'FR' %} L'Évaluation {% else %} Rating {% endif %}"
+  }
   dimension: release_year {
     type: number
     sql: ${TABLE}.release_year ;;
@@ -69,6 +103,13 @@ view: v_netflix_titles_enriched {
     label: "Movies"
     type: sum
     sql: CASE WHEN ${type} = 'Movie' THEN 1 ELSE 0 END ;;
+  }
+
+  measure: movies_count_lang {
+    type: sum
+    sql: CASE WHEN ${type} = 'Movie' THEN 1 ELSE 0 END ;;
+    # Use Liquid to dynamically set the label
+    label: "{% if _user_attributes['language_test'] == 'FR' %} Nombre de Films {% else %} Movies Count {% endif %}"
   }
 
   measure: tv_shows_count {
