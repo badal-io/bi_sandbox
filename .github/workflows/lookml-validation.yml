@@ -1,28 +1,37 @@
 name: LookML Validation Pipeline
 
+# Disabled: Only lookml-validation-partly.yml should run
 # workflow will run automatically on PR or push (as before) and can be triggered manually
+# on:
+#   workflow_dispatch:
+#   pull_request:
+#     branches: [ main, master, develop ]
+#     paths: 
+#       - '**/*.lookml'
+#       - '**/*.lkml'
+#       - '**/*.model'
+#       - '**/*.view'
+#       - '**/*.explore'
+#       - '**/*.dashboard'
+#       - 'manifest.lkml'
+#   push:
+#     branches: [ main, master ]
+#     paths: 
+#       - '**/*.lookml'
+#       - '**/*.lkml'
+#       - '**/*.model'
+#       - '**/*.view'
+#       - '**/*.explore'
+#       - '**/*.dashboard'
+#       - 'manifest.lkml'
+
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [ main, master, develop ]
-    paths: 
-      - '**/*.lookml'
-      - '**/*.lkml'
-      - '**/*.model'
-      - '**/*.view'
-      - '**/*.explore'
-      - '**/*.dashboard'
-      - 'manifest.lkml'
-  push:
-    branches: [ main, master ]
-    paths: 
-      - '**/*.lookml'
-      - '**/*.lkml'
-      - '**/*.model'
-      - '**/*.view'
-      - '**/*.explore'
-      - '**/*.dashboard'
-      - 'manifest.lkml'
+    inputs:
+      force_run:
+        description: 'Force run this disabled workflow'
+        required: false
+        default: 'false'
 
 jobs:
   lookml-validation:
