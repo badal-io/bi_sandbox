@@ -75,8 +75,59 @@ view: synthetic_training_data {
     type: string
     sql: ${TABLE}.training_topic ;;
   }
+
+  dimension: is_repeat_call {
+    type: yesno
+    sql: ${TABLE}.repeat_call ;;
+    label: "Repeat Call"
+  }
+
   measure: count {
     type: count
     drill_fields: [agent_name]
   }
+
+  # ============================================================================
+  # KPI MEASURES
+  # ============================================================================
+
+  measure: repeat_call_count {
+    type: count
+    filters: [repeat_call: "Yes"]
+    label: "Repeat Call Count"
+  }
+
+  measure: repeat_call_rate {
+    type: number
+    sql: 1.0 * ${repeat_call_count} / NULLIF(${count}, 0) ;;
+    label: "Repeat Call Rate"
+    value_format_name: percent_2
+  }
+
+  measure: retention_call_count {
+    type: count
+    filters: [retention_call: "Yes"]
+    label: "Retention Call Count"
+  }
+
+  measure: retention_call_rate {
+    type: number
+    sql: 1.0 * ${retention_call_count} / NULLIF(${count}, 0) ;;
+    label: "Retention Call Rate"
+    value_format_name: percent_2
+  }
+
+  measure: sales_call_count {
+    type: count
+    filters: [sales_call: "Yes"]
+    label: "Sales Call Count"
+  }
+
+  measure: sales_call_rate {
+    type: number
+    sql: 1.0 * ${sales_call_count} / NULLIF(${count}, 0) ;;
+    label: "Sales Call Rate"
+    value_format_name: percent_2
+  }
+
 }
