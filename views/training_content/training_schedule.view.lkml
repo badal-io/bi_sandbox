@@ -40,4 +40,10 @@ view: training_schedule {
     type: count
     drill_fields: [file_name, module_name]
   }
+  measure: total_spend_time_min {
+    type: sum
+    sql: ${spend_time_min} ;;
+  }
+
+
 }
