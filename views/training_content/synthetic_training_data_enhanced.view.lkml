@@ -242,7 +242,7 @@ view: synthetic_training_data_enhanced {
   measure: avg_training_duration {
     type: average
     sql: ${training_duration} ;;
-    label: "Average Training Duration"
+    label: "Training Duration"
     value_format_name: decimal_2
   }
 
