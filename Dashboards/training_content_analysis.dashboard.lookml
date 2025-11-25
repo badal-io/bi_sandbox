@@ -1,12 +1,12 @@
 - dashboard: training_analysis_dashboard
-  title: Training Analysis Dashboard
+  title: "{% if _user_attributes['user_language'] == 'fr' %}Analyse des Appels et Durée de Formation{% else %}Training Calls & Duration Analysis{% endif %}"
   layout: newspaper
   preferred_viewer: dashboards-next
   description: 'Comprehensive analysis of training effectiveness, call transcript topics, and module utilization'
 
   filters:
   - name: lob_filter
-    title: Line of Business (LOB)
+    title: "{% if _user_attributes['user_language'] == 'fr' %}Ligne d'Affaires (LOB){% else %}Line of Business (LOB){% endif %}"
     type: field_filter
     default_value: ''
     allow_multiple_values: true
