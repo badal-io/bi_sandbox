@@ -15,23 +15,41 @@ view: synthetic_training_data_enhanced {
   # ============================================================================
   # AGENT DIMENSIONS
   # ============================================================================
+#
+#  dimension: agent_id {
+#    type: number
+#    sql: ${TABLE}.agent_id ;;
+#    label: "Agent ID"
+#  }
+
+#  dimension: agent_name {
+#    type: string
+#    sql: ${TABLE}.agent_name ;;
+#    label: "Agent Name"
+#  }
+
+#  dimension: agent_manager {
+#    type: string
+#    sql: ${TABLE}.agent_manager ;;
+#    label: "Agent Manager"
+#  }
 
   dimension: agent_id {
     type: number
     sql: ${TABLE}.agent_id ;;
-    label: "Agent ID"
+    label: "{% if _user_attributes['user_language'] == 'fr' %}ID Agent{% else %}Agent ID{% endif %}"
   }
 
   dimension: agent_name {
     type: string
     sql: ${TABLE}.agent_name ;;
-    label: "Agent Name"
+    label: "{% if _user_attributes['user_language'] == 'fr' %}Nom de l'Agent{% else %}Agent Name{% endif %}"
   }
 
   dimension: agent_manager {
     type: string
     sql: ${TABLE}.agent_manager ;;
-    label: "Agent Manager"
+    label: "{% if _user_attributes['user_language'] == 'fr' %}Gestionnaire d'Agent{% else %}Agent Manager{% endif %}"
   }
 
   # ============================================================================
