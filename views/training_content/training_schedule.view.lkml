@@ -22,8 +22,8 @@ view: training_schedule {
     sql: ${TABLE}.lob ;;
   }
   dimension: module_name {
-    type: number
-    description: "The name of the training module or activity."
+    type: string
+    description: "The name of the training module."
     sql: ${TABLE}.module_name ;;
     label: "{% if _user_attributes['user_language'] == 'fr' %}Nom du Module{% else %}Module Name{% endif %}"
   }
