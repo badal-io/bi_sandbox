@@ -22,9 +22,10 @@ view: training_schedule {
     sql: ${TABLE}.lob ;;
   }
   dimension: module_name {
-    type: string
+    type: number
     description: "The name of the training module or activity."
     sql: ${TABLE}.module_name ;;
+    label: "{% if _user_attributes['user_language'] == 'fr' %}Nom du Module{% else %}Module Name{% endif %}"
   }
   dimension: spend_time_min {
     type: number
@@ -43,6 +44,7 @@ view: training_schedule {
   measure: total_spend_time_min {
     type: sum
     sql: ${spend_time_min} ;;
+    label: "{% if _user_attributes['user_language'] == 'fr' %}Temps Total (min){% else %}Total Time (min) {% endif %}"
   }
 
 
