@@ -2,6 +2,9 @@ connection: "badal_internal_projects"
 
 include: "/explores/case_21.explore"
 include: "/explores/general_views.explore"
+include: "/explores/training_content.explore"
+
+
 
 # --- MERGED INCLUDES ---
 
@@ -12,6 +15,10 @@ include: "/Dashboards/netflix_base.dashboard.lookml"
 include: "/Dashboards/netflix_extended.dashboard.lookml"
 # Including dlp files from dbt_internal_framework project
 include: "//dbt-internal-framework/views/dlp/*.view.lkml"
+include: "/Dashboards/Training_analysis.dashboard.lookml"
+include: "/Dashboards/training_content_analysis.dashboard.lookml"
+
+
 
 # --- END MERGED INCLUDES ---
 
